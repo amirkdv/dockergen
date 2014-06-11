@@ -1,0 +1,35 @@
+- name: add_assets
+  description: upload the assets directory
+  steps:
+  - inline: ADD assets /var/build/assets
+
+- name: disable_init
+  description: |
+    Disable initctl as it conflicts with docker build,
+    see https://github.com/dotcloud/docker/issues/2276
+  steps:
+  - run: dpkg-divert --local --rename --add /sbin/initctl && ln -s -f /bin/true /sbin/initctl
+
+- name: dev_basics
+  description: install common dev/admin utilities
+  steps:
+  - run: apt-get install -y man-db sudo pv psmisc gzip # man, sudo, pv, pstree, zless
+  - run: apt-get install -y curl tcpdump iputils-ping netcat # tcpdump, ping, nc
+  - run: apt-get install -y git vim
+
+- name: set_root_password
+  description: Set the root password for SSH access
+  steps:
+  - run: echo "root:%%root_password%%" | chpasswd
+
+- name: cron
+  description: Install and configure cron under supervisor control
+  steps:
+  - run: apt-get install -y cron
+  - add:
+      destination: /etc/supervisor/conf.d/cron.conf
+      filename: supervisor/cron.conf
+      contents: |
+        ; Supervisor configuration for cron
+        [program:cron]
+        command = /usr/sbin/cron -f

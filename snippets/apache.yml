@@ -1,0 +1,67 @@
+- name: apache
+  description: install Apache and configure it under supervisor control
+  steps:
+  - run: apt-get install -y apache2
+  - run: rm /etc/apache2/sites-enabled/*
+  - add:
+      destination: etc/supervisor/conf.d/apache.conf
+      filename: supervisor/apache.conf
+      contents: |
+        ; supervisor configuration for Apache
+        [program:apache]
+        command = /bin/sh -c '. /etc/apache2/envvars && exec /usr/sbin/apache2 -D FOREGROUND'
+
+- name: apache_2.2_site
+  description: install vhost file for Apache 2.2. and populate docrooot /var/www
+  steps:
+  - run: sed -i 's/Listen 80/Listen %%apache_site_port%%/' /etc/apache2/ports.conf
+  - run: a2enmod rewrite vhost_alias
+  - add:
+      destination: /etc/apache2/sites-available/site
+      filename: apache/vhost
+      contents: |
+        <VirtualHost *:%%apache_site_port%%>
+          ServerName default
+          ServerAlias default
+          DocumentRoot /var/www
+          RewriteEngine On
+
+          <Directory /var/www>
+            Options FollowSymLinks
+            AllowOverride All
+            Order allow,deny
+            Allow from all
+          </Directory>
+
+          LogLevel info
+          ErrorLog /var/log/apache2/site-error.log
+          CustomLog /var/log/apache2/site-access.log combined
+        </VirtualHost>
+  - run: cp -rf /var/build/%%codebase_docroot%%/. /var/www/ && a2ensite site
+  - run: chgrp sudo -R /var/www && chmod -R g=rws /var/www && chown -R www-data:sudo /var/www
+  - run: find /var/www -type f -print0 | xargs -0 chmod u=r,g=rw,o-rwx
+  - run: find /var/www -type d -print0 | xargs -0 chmod u=rx,g=rwx,o-rwx
+
+- name: apache_rpaf
+  description:  configure mod_rpaf for Apache to ensure proper IP addresses are logged
+  steps:
+  - run: apt-get install -y libapache2-mod-rpaf && a2enmod rpaf
+  - add:
+      destination: /etc/apache2/mods-available/rpaf.conf
+      filename: apache/rpaf.conf
+      contents: |
+        <IfModule rpaf_module>
+            RPAFenable On
+
+            # When enabled, take the incoming X-Host header and
+            # update the virtualhost settings accordingly:
+            RPAFsethostname On
+
+            # Define which IP's are your frontend proxies that sends
+            # the correct X-Forwarded-For headers:
+            RPAFproxy_ips %%proxy_ips%% 127.0.0.1 ::1
+
+            # Change the header name to parse from the default
+            # X-Forwarded-For to something of your choice:
+            # RPAFheader X-Real-IP
+        </IfModule>

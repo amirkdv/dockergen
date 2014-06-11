@@ -1,0 +1,14 @@
+- name: memcached
+  description: install memcached and add corresponding supervisord program
+  steps:
+  - run: apt-get install -y memcached
+  - add:
+      destination: /etc/supervisor/conf.d/memcached.conf
+      filename: supervisor/memcached.conf
+      contents: |
+        ; supervisor configuration for Memcached. If you wish, for debugging purposes,
+        ; to get memcached logs, add '-vv' to command options.
+        [program:memcached]
+        command=/usr/bin/memcached -m 64 -p 11211 -U 11211 -u nobody -l 127.0.0.1 -c 1024 -I 1m
+        stdout_logfile=/var/log/memcached.log
+        stderr_logfile=/var/log/memcached.log

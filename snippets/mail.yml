@@ -1,0 +1,5 @@
+- name: exim4_outgoing
+  description: Install and configure Exim4 for outgoing mail
+  steps:
+  - run: echo "exim4-config exim4/dc_eximconfig_configtype select internet site; mail is sent and received directly using SMTP" | debconf-set-selections
+  - run: apt-get install -y exim4

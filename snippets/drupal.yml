@@ -1,0 +1,36 @@
+- name: drush
+  description: install drush via composer
+  steps:
+  - run: composer global require drush/drush:6.*
+  - run: ln -sf /.composer/vendor/drush/drush/drush /usr/local/bin/drush
+
+- name: adjust_drupal_docroot
+  description: populate settings.local.php and fix docroot file permissions
+  steps:
+  - run: sed -i 's/settings-priv\.php/settings.local.php/' /var/www/sites/default/settings.php
+  - run: |
+      for dir in %%drupal_writable_dirs%%; do \
+        test -d "/var/www/$dir" || mkdir -p "/var/www/$dir"; \
+        chown -R www-data "/var/www/$dir" && chmod -R u+w "/var/www/$dir"; \
+      done
+  - add:
+      destination: /var/www/sites/default/settings.local.php
+      filename: settings.local.php
+      contents: |
+        <?php
+        // settings.local.php for D6 and D7, to be included from settings.php
+        $db_url = "mysql://%%mysql_user%%:%%mysql_password%%@localhost/%%mysql_database%%";
+        $databases['default']['default'] = array(
+          'database' => '%%mysql_database%%',
+          'username' => '%%mysql_user%%',
+          'password' => '%%mysql_password%%',
+          'host' => 'localhost',
+          'driver' => 'mysql',
+          'port' => 3306,
+          'prefix' => '',
+        );
+
+- name: drupal_cron
+  description: Assign 'drush cron' as cronjob for user www-data
+  steps:
+  - run: echo "0 *  *    *  *  /usr/bin/env COLUMNS=72 /usr/local/bin/drush --root=/var/www --uri=http://default --quiet cron" | crontab -u www-data -

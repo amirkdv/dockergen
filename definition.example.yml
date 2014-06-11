@@ -1,0 +1,26 @@
+from: 'ubuntu:12.04'
+
+snippets:
+  - disable_init
+  - initialize_apt
+  - supervisor
+  - apache
+  - add_assets
+  - apache_2.2_site
+
+cmd: supervisord -c /etc/supervisord.conf -n
+
+vars:
+  apache_site_port: 80
+  codebase_docroot: assets/site
+
+assets:
+  - destination: assets/site
+    action: mkdir -p assets/site && echo 'Hello World' > assets/site/index.html
+
+docker:
+  ctname: 'apache_app'
+  image:  'apache_app'
+  ports:
+    - host: 8001
+      container: 80

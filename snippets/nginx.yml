@@ -1,0 +1,79 @@
+- name: nginx
+  description: install nginx and configure it under supervisor control
+  steps:
+  - run: apt-get install -y nginx
+  - run: rm -f /etc/nginx/sites-enabled/*
+  - run: echo "\n\n# Nginx will be under supervisor control\ndaemon off;\n" >> /etc/nginx/nginx.conf
+  - add:
+      destination: /etc/supervisor/conf.d/nginx.conf
+      filename: supervisor/nginx.conf
+      contents: |
+        ; supervisor configuration for Nginx 1.x
+        [program:nginx]
+        command = /usr/sbin/nginx
+
+- name: nginx_proxy_support
+  description: |
+    install nginx and configure it under supervisor control,
+    version 1.5+ is need for PROXY protocol support,
+    see https://chrislea.com/2014/03/20/using-proxy-protocol-nginx/
+  steps:
+  - run: apt-add-repository ppa:chris-lea/nginx-devel
+  - run: apt-get update && apt-get -y install nginx-full
+  - run: echo "\n\n# Nginx will be under supervisor control\ndaemon off;\n" >> /etc/nginx/nginx.conf
+  - run: rm -f /etc/nginx/sites-enabled/*
+  - add:
+      destination: /etc/supervisor/conf.d/nginx.conf
+      filename: supervisor/nginx.conf
+      contents: |
+        ; supervisor configuration for Nginx 1.x
+        [program:nginx]
+        command = /usr/sbin/nginx
+
+- name: nginx_reverse_proxy_site
+  description: configure and enable an nginx site
+  steps:
+  - add:
+      destination: /etc/nginx/sites-available/proxy_site
+      filename: nginx/proxy_site
+      contents: |
+        log_format proxy '$remote_addr - $remote_user [$time_local] ' '"$request" $status $body_bytes_sent "$http_referer" ' '"$http_user_agent"';
+
+        server {
+          listen %%nginx_proxy_port_external%%;
+
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header Host $http_host;
+
+          location / {
+            access_log /var/log/nginx/proxy.access.log proxy;
+            error_log   /var/log/nginx/proxy.error.log;
+            proxy_pass http://127.0.0.1:%%nginx_proxy_port_internal%%;
+          }
+        }
+  - run: ln -sf ../sites-available/proxy_site /etc/nginx/sites-enabled/proxy_site
+
+- name: nginx_reverse_proxy_site_proxy_support
+  description: configure and enable an nginx reverse proxy site with PROXY protocol support
+  steps:
+  - add:
+      destination: /etc/nginx/sites-available/proxy_site
+      filename: nginx/proxy_site
+      contents: |
+        log_format proxy '$proxy_protocol_addr - $remote_user [$time_local] ' '"$request" $status $body_bytes_sent "$http_referer" ' '"$http_user_agent"';
+
+        server {
+          listen %%nginx_proxy_port_external%% proxy_protocol;
+
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For "$proxy_protocol_addr $proxy_add_x_forwarded_for";
+          proxy_set_header Host $http_host;
+
+          location / {
+            access_log /var/log/nginx/proxy.access.log proxy;
+            error_log   /var/log/nginx/proxy.error.log;
+            proxy_pass http://127.0.0.1:%%nginx_proxy_port_internal%%;
+          }
+        }
+  - run: ln -sf ../sites-available/proxy_site /etc/nginx/sites-enabled/proxy_site

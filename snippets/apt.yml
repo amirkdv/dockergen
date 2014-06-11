@@ -1,0 +1,13 @@
+- name: initialize_apt
+  description: configure apt
+  steps:
+  - env:
+      name: DEBIAN_FRONTEND
+      value: noninteractive
+  - run: apt-get update && apt-get install -y python-software-properties
+
+- name: squid_deb_proxy
+  description: configure container to use squid-deb-proxy
+  steps:
+  - run: echo 'Acquire::http::Proxy "%%squid_deb_proxy_url%%";' > /etc/apt/apt.conf.d/30squid-deb-proxy
+  - run: echo 'Acquire::http::Proxy::ppa.launchpad.net DIRECT;' >> /etc/apt/apt.conf.d/30squid-deb-proxy

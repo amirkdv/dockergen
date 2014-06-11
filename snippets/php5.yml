@@ -1,0 +1,15 @@
+- name: php5_basics
+  description: install PHP and apache/mysql modules
+  steps:
+  - run: apt-get install -y php5 php5-dev php5-cli php5-mysql libapache2-mod-php5
+
+- name: php5_modules
+  description: install extra PHP modules used by Drupal
+  steps:
+  - run: apt-get install -y php5-curl php5-gd php5-memcache php-apc
+
+- name: composer
+  description: install composer
+  steps:
+  - run: curl -sS https://getcomposer.org/installer | php
+  - run: mv composer.phar /usr/local/bin/composer
