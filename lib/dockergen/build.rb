@@ -14,7 +14,8 @@ module DockerGen
     public
       def generate
         gen_dockerfile
-        DockerGen::makefile(@build_def['docker'], @build_dir, @build_def['assets'])
+        assets = @build_def['assets'] || {}
+        DockerGen::makefile(@build_def['docker'], @build_dir, assets)
       end
 
     private
@@ -24,7 +25,9 @@ module DockerGen
         dockerfile += DockerGen::wrap_comment("Final steps")
         dockerfile += "ADD . /var/build\n"
         dockerfile += "RUN chown -R root:root /var/build && chmod -R u=rw,g=r,a-rwx /var/build\n"
-        dockerfile += 'CMD ["' + @build_def['cmd'].split.join('", "') + '"]' + "\n"
+        if @build_def['cmd']
+          dockerfile += 'CMD ["' + @build_def['cmd'].split.join('", "') + '"]' + "\n"
+        end
         DockerGen::update_file(File.join(@build_dir, 'Dockerfile'), dockerfile)
       end
 
@@ -35,7 +38,7 @@ module DockerGen
             if all_snippets[snippet['name']]
               raise "Cannot redeclare #{snippet['name']} in #{file}, previously defined in #{snippets[s['name']].path}"
             else
-              vars = @build_def['vars'] || { }
+              vars = @build_def['vars'] || {}
               all_snippets[snippet['name']] = Snippet.new(snippet, vars, @build_dir, file)
             end
           end

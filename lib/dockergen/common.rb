@@ -62,7 +62,8 @@ module DockerGen
     # start target
     contents += "\nstart:\n\tdocker run --detach "
     contents += "--name #{docker_config['ctname']} " if docker_config['ctname']
-    docker_config['ports'].each do |port|
+    port_config = docker_config['ports'] || {}
+    port_config.each do |port|
       contents += "--publish #{port['host']}:#{port['container']} "
     end
     contents += docker_config['image']
