@@ -9,7 +9,19 @@
   - run: apt-get install -y php5-curl php5-gd php5-memcache php-apc
 
 - name: composer
-  description: install composer
+  description: |
+    Install Composer under /usr/share/composer.
+    Notes:
+    - Composer expects to find either COMPOSER_HOME or HOME in the environment.
+      Since `docker build` and `docker run` operate in non-login shells, we set
+      COMPOSER_HOME here.
+    - Non-root users in logins shells still can use Composer, but they will not
+      have access to the root user's globally required packages in `/root/vendor`.
+    - See https://getcomposer.org/download/
   steps:
-  - run: curl -sS https://getcomposer.org/installer | php
-  - run: mv composer.phar /usr/local/bin/composer
+  - run: mkdir -p /usr/share/composer
+  - env:
+      name: COMPOSER_HOME
+      value: /root
+  - run: wget https://getcomposer.org/composer.phar -O /usr/local/bin/composer
+  - run: chmod +x /usr/local/bin/composer
