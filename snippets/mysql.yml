@@ -3,7 +3,7 @@
   steps:
   - run: apt-get install -y mysql-server
   - add:
-      destination: etc/supervisor/conf.d/mysql.conf
+      destination: /etc/supervisor/conf.d/mysql.conf
       filename: supervisor/mysql.conf
       contents: |
         ; supervisor configuration for MySQL server, the following assumes that syslog
