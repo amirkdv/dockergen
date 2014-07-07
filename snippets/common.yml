@@ -10,12 +10,15 @@
   steps:
   - run: dpkg-divert --local --rename --add /sbin/initctl && ln -s -f /bin/true /sbin/initctl
 
+- name: basic_utils
+  description: install common utilities used in provisioning commnads
+  steps:
+  - run: apt-get install -y sudo pv git curl gzip curl wget
+
 - name: dev_basics
   description: install common dev/admin utilities
   steps:
-  - run: apt-get install -y man-db sudo pv psmisc gzip # man, sudo, pv, pstree, zless
-  - run: apt-get install -y curl tcpdump iputils-ping netcat # tcpdump, ping, nc
-  - run: apt-get install -y git vim
+  - run: apt-get install -y vim man-db psmisc tcpdump iputils-ping netcat-openbsd
 
 - name: set_root_password
   description: Set the root password for SSH access
