@@ -4,7 +4,7 @@
   - run: apt-get install -y apache2
   - run: rm /etc/apache2/sites-enabled/*
   - add:
-      destination: etc/supervisor/conf.d/apache.conf
+      destination: /etc/supervisor/conf.d/apache.conf
       filename: supervisor/apache.conf
       contents: |
         ; supervisor configuration for Apache
