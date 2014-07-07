@@ -46,27 +46,27 @@ module DockerGen
     end
 
     private
-      def interpret_add(definition, vars)
-        local_dst = File.join('files', definition['filename'])
-        if definition['filename']
-          if definition['source'] && definition['contents']
-            raise "'add' blocks can either have 'source' or 'contents', both given for '#{@name}'"
-          elsif definition['source']
-            source = File.join(File.dirname(@base_dir), definition['source'])
-            contents = File.open(source, 'r') { |f| f.read }
-            contents = DockerGen::filter_vars(contents, vars)
-          elsif definition['contents']
-            contents = DockerGen::filter_vars(definition['contents'], vars)
-          else
-            raise "'add' blocks must either have 'source' or 'contents', none given for '#{@name}'"
-          end
+    def interpret_add(definition, vars)
+      local_dst = File.join('files', definition['filename'])
+      if definition['filename']
+        if definition['source'] && definition['contents']
+          raise "'add' blocks can either have 'source' or 'contents', both given for '#{@name}'"
+        elsif definition['source']
+          source = File.join(File.dirname(@base_dir), definition['source'])
+          contents = File.open(source, 'r') { |f| f.read }
+          contents = DockerGen::filter_vars(contents, vars)
+        elsif definition['contents']
+          contents = DockerGen::filter_vars(definition['contents'], vars)
         else
-          raise "'add' blocks must specify 'filename', none given for '#{@name}'"
+          raise "'add' blocks must either have 'source' or 'contents', none given for '#{@name}'"
         end
-        DockerGen::update_file(File.join(@build_dir, local_dst), contents)
-
-        "ADD #{local_dst} #{definition['destination']}"
+      else
+        raise "'add' blocks must specify 'filename', none given for '#{@name}'"
       end
+      DockerGen::update_file(File.join(@build_dir, local_dst), contents)
+
+      "ADD #{local_dst} #{definition['destination']}"
+    end
 
   end
 end
