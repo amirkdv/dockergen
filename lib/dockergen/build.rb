@@ -21,7 +21,8 @@ module DockerGen
     private
       def gen_dockerfile
         dockerfile = "FROM #{@build_def['from']}\n\n"
-        @snippets.each { |s| dockerfile += s.interpret }
+        vars = @build_def['vars'] || {}
+        @snippets.each { |s| dockerfile += s.interpret(vars)}
         dockerfile += DockerGen::wrap_comment("Final steps")
         dockerfile += "ADD . /var/build\n"
         dockerfile += "RUN chown -R root:root /var/build && chmod -R u=rw,g=r,a-rwx /var/build\n"
@@ -38,8 +39,7 @@ module DockerGen
             if all_snippets[snippet['name']]
               raise "Cannot redeclare #{snippet['name']} in #{file}, previously defined in #{snippets[s['name']].path}"
             else
-              vars = @build_def['vars'] || {}
-              all_snippets[snippet['name']] = Snippet.new(snippet, vars, @build_dir, file)
+              all_snippets[snippet['name']] = Snippet.new(snippet, @build_dir, file)
             end
           end
           STDERR.puts "Loaded snippet defintion file #{file}"

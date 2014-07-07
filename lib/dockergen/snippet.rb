@@ -1,7 +1,7 @@
 module DockerGen
   class Snippet
     attr_reader :vars, :build_dir, :base_dir, :description, :name, :steps
-    def initialize(definition, vars, build_dir, base_dir)
+    def initialize(definition, build_dir, base_dir)
       @description = definition['description']
       @name = definition['name']
       if definition['steps']
@@ -10,11 +10,10 @@ module DockerGen
         raise "No steps defined for #{@name}"
       end
       @base_dir = base_dir
-      @vars = vars
       @build_dir = build_dir
     end
 
-    def interpret
+    def interpret(vars)
       if @description
         dockerfile = DockerGen::wrap_comment(@description)
       else
@@ -27,17 +26,17 @@ module DockerGen
         action = step[type]
         case type
         when 'add'
-          dockerfile += interpret_add(action) + "\n"
+          dockerfile += interpret_add(action, vars) + "\n"
         when 'run'
-          action = DockerGen::filter_vars(action, @vars)
+          action = DockerGen::filter_vars(action, vars)
           action = action.strip.gsub(/\n/, "\n    ")
           dockerfile += 'RUN ' + action + "\n"
         when 'env'
-          name = DockerGen::filter_vars(action['name'], @vars)
-          value = DockerGen::filter_vars(action['value'],@vars)
+          name = DockerGen::filter_vars(action['name'], vars)
+          value = DockerGen::filter_vars(action['value'], vars)
           dockerfile += 'ENV ' + name + ' ' + value + "\n"
         when 'inline'
-          action = DockerGen::filter_vars(action, @vars)
+          action = DockerGen::filter_vars(action, vars)
           dockerfile += action + "\n"
         else
           raise "Unknown type '#{type}' in snippet #{@name} (file: #{@file})"
@@ -47,8 +46,7 @@ module DockerGen
     end
 
     private
-
-      def interpret_add(definition)
+      def interpret_add(definition, vars)
         local_dst = File.join('files', definition['filename'])
         if definition['filename']
           if definition['source'] && definition['contents']
@@ -56,9 +54,9 @@ module DockerGen
           elsif definition['source']
             source = File.join(File.dirname(@base_dir), definition['source'])
             contents = File.open(source, 'r') { |f| f.read }
-            contents = DockerGen::filter_vars(contents, @vars)
+            contents = DockerGen::filter_vars(contents, vars)
           elsif definition['contents']
-            contents = DockerGen::filter_vars(definition['contents'], @vars)
+            contents = DockerGen::filter_vars(definition['contents'], vars)
           else
             raise "'add' blocks must either have 'source' or 'contents', none given for '#{@name}'"
           end
