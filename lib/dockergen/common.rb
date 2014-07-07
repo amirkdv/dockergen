@@ -28,7 +28,9 @@ module DockerGen
 
   def self.prepare_build_dir(build_dir, force)
     if File.exists?(build_dir) && force
-      FileUtils.rm_r(build_dir)
+      FileUtils.rm_r(File.join(build_dir, 'files'))
+      FileUtils.rm(File.join(build_dir, 'Dockerfile'))
+      FileUtils.rm(File.join(build_dir, 'Makefile'))
     end
     Dir.mkdir(build_dir) unless File.exists?(build_dir)
   end
