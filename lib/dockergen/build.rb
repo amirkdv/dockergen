@@ -13,27 +13,33 @@ module DockerGen
 
     public
       def generate
-        gen_dockerfile
+        # Dockerfile and corresponding files/
+        dockerfile = gen_dockerfile(@build_def['Dockerfile'])
+        DockerGen::update_file(File.join(@build_dir, 'Dockerfile'), dockerfile)
+
+        # Makefile
         assets = @build_def['assets'] || {}
-        DockerGen::makefile(@build_def['docker'], @build_dir, assets)
+        makefile = DockerGen::gen_makefile(@build_def['Makefile'])
+        DockerGen::update_file(File.join(@build_dir, 'Makefile'), makefile)
       end
 
     private
-      def gen_dockerfile
-        dockerfile = "FROM #{@build_def['from']}\n\n"
-        vars = @build_def['vars'] || {}
-        @snippets.each { |s| dockerfile += s.interpret(vars)}
-        dockerfile += DockerGen::wrap_comment("Final steps")
-        dockerfile += "ADD . /var/build\n"
-        dockerfile += "RUN chown -R root:root /var/build && chmod -R u=rw,g=r,a-rwx /var/build\n"
-        if @build_def['cmd']
-          dockerfile += 'CMD ["' + @build_def['cmd'].split.join('", "') + '"]' + "\n"
+      def gen_dockerfile(definition)
+        raise "Dockerfile FROM not specified" unless definition['from']
+        contents = "FROM #{definition['from']}\n\n"
+        vars = definition['vars'] || {}
+        @snippets.each { |s| contents += s.interpret(vars)}
+        contents += DockerGen::wrap_comment("Final steps")
+        contents += "ADD . /var/build\n"
+        contents += "RUN chown -R root:root /var/build && chmod -R u=rw,g=r,a-rwx /var/build\n"
+        if definition['cmd']
+          contents += 'CMD ["' + definition['cmd'].split.join('", "') + '"]' + "\n"
         end
-        DockerGen::update_file(File.join(@build_dir, 'Dockerfile'), dockerfile)
+        return contents
       end
 
       def load_snippets
-        all_snippets = { }
+        all_snippets = {}
         Dir.glob(File.join(@base_dir, 'snippets/*.yml')).each do |file|
           YAML.load_file(file).each do |snippet|
             if all_snippets[snippet['name']]
@@ -45,7 +51,7 @@ module DockerGen
           STDERR.puts "Loaded snippet defintion file #{file}"
         end
         @snippets = [ ]
-        build_def['snippets'].each do |snippet|
+        build_def['Dockerfile']['snippets'].each do |snippet|
           if all_snippets[snippet]
             @snippets << all_snippets[snippet]
           else

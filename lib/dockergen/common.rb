@@ -35,39 +35,33 @@ module DockerGen
     Dir.mkdir(build_dir) unless File.exists?(build_dir)
   end
 
-  def self.makefile(docker_config, build_dir, assets = nil)
+  def self.gen_makefile(definition)
+    raise "No name specified for the generated docker image" unless definition['image_tag']
     # assets target
     contents = ''
 
     # assets target
-    if ! assets.nil?
-      assets_target = 'assets: '
-      assets.each do |asset|
-        destination = asset['destination']
-        action = asset['action']
-        contents += destination + ":\n\t" + action.gsub(/\n/, "\n\t") + "\n\n"
-        assets_target += destination + ' '
-      end
-      contents += assets_target + "\n"
+    assets = definition['assets'] || []
+    assets_target = 'assets: '
+    assets.each do |asset|
+      destination = asset['destination']
+      action = asset['action']
+      contents += destination + ":\n\t" + action.gsub(/\n/, "\n\t") + "\n\n"
+      assets_target += destination + ' '
     end
+    contents += assets_target + "\n"
 
     # build target
     contents += "\nbuild: assets\n"
-    contents += "\tdocker build --tag #{docker_config['image']} .\n"
+    contents += "\tdocker build --tag #{definition['image_tag']} .\n"
 
     # build_no_cache target
     contents += "\nbuild_no_cache: assets\n"
-    contents += "\tdocker build --no-cache --tag #{docker_config['image']} .\n"
+    contents += "\tdocker build --no-cache --tag #{definition['image_tag']} .\n"
 
     # start target
-    contents += "\nstart:\n\tdocker run --detach "
-    contents += "--name #{docker_config['ctname']} " if docker_config['ctname']
-    port_config = docker_config['ports'] || {}
-    port_config.each do |port|
-      contents += "--publish #{port['host']}:#{port['container']} "
-    end
-    contents += docker_config['image']
-    contents += "\n"
-    self.update_file(File.join(build_dir, 'Makefile'), contents)
+    docker_run_opts = definition['docker_run_opts'] || []
+    contents += "\nstart:\n\tdocker run #{docker_run_opts.join(' ')} #{definition['image_tag']}\n"
+    return contents
   end
 end
