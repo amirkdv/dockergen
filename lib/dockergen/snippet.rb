@@ -1,4 +1,29 @@
 module DockerGen
+  def self.load_snippets(source_dir, build_dir) # build_dir is only needed for generating the files/ dir
+    failure_msg = "Failed to load snippets from #{source_dir}"
+    unless File.directory?(source_dir)
+      raise "#{failure_msg}: no such directory"
+    end
+    unless File.readable?(source_dir)
+      raise "#{failure_msg}: cannot open directory"
+    end
+    all = {}
+    Dir.glob(File.join(source_dir, '*.yml')).each do |source_file|
+      YAML.load_file(source_file).each do |snippet_source|
+        unless snippet_source['name']
+          raise "Cannot have a snippet without a name, in #{source_file}"
+        end
+        name = snippet_source['name']
+        if all[name]
+          raise "Cannot redeclare #{snippet_source['name']}, in #{source_file}"
+        end
+        all[name] = Snippet.new(snippet_source, build_dir, source_dir)
+      end
+      STDERR.puts "Loaded snippet defintion file #{source_file}"
+    end
+    all
+  end
+
   class Snippet
     attr_reader :vars, :build_dir, :base_dir, :description, :name, :steps
     def initialize(definition, build_dir, base_dir)

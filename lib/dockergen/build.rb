@@ -8,7 +8,15 @@ module DockerGen
       @build_def = YAML.load_file(def_yaml)
       DockerGen::prepare_build_dir(build_dir,force)
       @build_dir = build_dir
-      load_snippets
+      all_snippets = DockerGen::load_snippets(File.join(@base_dir, 'snippets'), @build_dir)
+      @snippets = [ ]
+      build_def['Dockerfile']['snippets'].each do |snippet|
+        if all_snippets[snippet]
+          @snippets << all_snippets[snippet]
+        else
+          raise "Undefined snippet #{snippet}"
+        end
+      end
     end
 
     public
@@ -36,28 +44,6 @@ module DockerGen
         contents += 'CMD ["' + definition['cmd'].split.join('", "') + '"]' + "\n"
       end
       return contents
-    end
-
-    def load_snippets
-      all_snippets = {}
-      Dir.glob(File.join(@base_dir, 'snippets/*.yml')).each do |file|
-        YAML.load_file(file).each do |snippet|
-          if all_snippets[snippet['name']]
-            raise "Cannot redeclare #{snippet['name']} in #{file}, previously defined in #{snippets[s['name']].path}"
-          else
-            all_snippets[snippet['name']] = Snippet.new(snippet, @build_dir, file)
-          end
-        end
-        STDERR.puts "Loaded snippet defintion file #{file}"
-      end
-      @snippets = [ ]
-      build_def['Dockerfile']['snippets'].each do |snippet|
-        if all_snippets[snippet]
-          @snippets << all_snippets[snippet]
-        else
-          raise "Undefined snippet #{snippet}"
-        end
-      end
     end
   end
 end
