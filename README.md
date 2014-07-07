@@ -46,7 +46,6 @@ This will create the direcory `apache_app` with the following contents:
         |   |-- apache
         |   |   |-- rpaf.conf
         |   |   `-- vhost
-        |   |-- settings.local.php
         |   `-- supervisor
         |       |-- apache.conf
         |       `-- supervisord.conf
