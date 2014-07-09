@@ -1,22 +1,27 @@
-Dockerfile:
-  from: 'ubuntu:12.04'
-  cmd: supervisord -c /etc/supervisord.conf -n
-  snippets:
-  - disable_init
-  - initialize_apt
-  - supervisor
-  - apache
-  - add_assets
-  - apache_2.2_site
-  vars:
-    apache_site_port: 80
-    codebase_docroot: assets/site
+snippet_sources: ./snippets/_updated_format.yml
 
-Makefile:
-  assets:
-  - destination: assets/site
-    action: mkdir -p assets/site && echo 'Hello World' > assets/site/index.html
-  image_tag: apache_app
-  docker_run_opts:
-  - '--name apache_app'
+Dockerfile:
+  - FROM ubuntu:12.04
+  - snippet: initialize_apt
+  - snippet: supervisor
+  - snippet: apache2
+    vars:
+      listen_ports: 80
+      mods:
+  - snippet: apache_2.2_site
+    vars:
+      docroot: /var/www/example
+      docroot_local: assets/site
+      name: hello
+      port: 80
+  - CMD ["supervisord", "-c", "/etc/supervisord.conf", "-n"]
+
+assets:
+  - filename: assets/site
+    fetch: mkdir -p assets/site && echo 'Hello World' > assets/site/index.html
+
+docker_opts:
+  build_tag: amirkdv/apache_app
+  run_opts:
+  - '--name ct_apache_app'
   - '--publish 8001:80'

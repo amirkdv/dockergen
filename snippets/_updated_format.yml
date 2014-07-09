@@ -1,0 +1,104 @@
+- name: apache2
+  description: install Apache and configure it under supervisor control
+  dockerfile: |
+    RUN apt-get install -y apache2
+    RUN rm /etc/apache2/sites-enabled/*
+    ADD files/supervisor/apache.conf /etc/supervisor/conf.d/apache.conf
+    RUN sed -i 's/Listen 80/Listen %%listen_ports%%/' /etc/apache2/ports.conf
+  context:
+  - filename: files/supervisor/apache.conf
+    contents: |
+      ; supervisor configuration for Apache
+      [program:apache]
+      command = /bin/sh -c '. /etc/apache2/envvars && exec /usr/sbin/apache2 -D FOREGROUND'
+
+- name: apache_2.2_site
+  description: install vhost file for Apache 2.2. and populate docrooot
+  dockerfile: |
+    ADD files/apache_vhost /etc/apache2/sites-available/%%name%%
+    ADD %%docroot_local%% %%docroot%%
+    RUN export DR="%%docroot%%" && \
+        chgrp sudo -R $DR && chmod -R g=rws $DR && chown -R www-data:sudo $DR
+    RUN find %%docroot%% -type f -print0 | xargs -0 chmod u=r,g=rw,o-rwx
+    RUN find %%docroot%% -type d -print0 | xargs -0 chmod u=rx,g=rwx,o-rwx
+    RUN a2ensite %%name%%
+  context:
+  - filename: files/apache_vhost
+    contents: |
+      <VirtualHost *:%%port%%>
+        ServerName default
+        ServerAlias default
+        DocumentRoot %%docroot%%
+
+        <Directory %%docroot%%>
+          Options FollowSymLinks
+          AllowOverride All
+          Order allow,deny
+          Allow from all
+        </Directory>
+
+        LogLevel info
+        ErrorLog /var/log/apache2/%%name%%-error.log
+        CustomLog /var/log/apache2/%%name%%-access.log combined
+      </VirtualHost>
+  - filename: '%%docroot_local%%'
+    # not having 'contents' means this file must be provided exernally
+
+- name: php5
+  description: |
+    Install basic packages for PHP5: installs only the cli SAPI and common dev
+    dependencies.
+  dockerfile: RUN apt-get install -y php5-cli php5-dev php5-common
+
+- name: php5_apache2
+  description: PHP/Apache integration
+  dockerfile: RUN apt-get install -y libapache2-mod-php5
+
+- name: initialize_apt
+  description: configure apt
+  dockerfile: |
+    ENV DEBIAN_FRONTEND noninteractive
+    RUN apt-get update && apt-get install -y python-software-properties
+
+- name: disable_init
+  description: |
+    Disable initctl as it conflicts with docker build,
+    see https://github.com/dotcloud/docker/issues/2276
+  dockerfile: |
+    RUN dpkg-divert --local --rename --add /sbin/initctl
+    RUN ln -s -f /bin/true /sbin/initctl
+
+- name: basic_utils
+  description: install common utilities used in provisioning commnads
+  dockerfile: RUN apt-get install -y sudo pv git curl gzip curl wget
+
+- name: supervisor
+  description: install supervisor with minimal configuration
+  dockerfile: |
+    RUN apt-get install -y python-setuptools && easy_install supervisor
+    RUN mkdir -p /etc/supervisor/conf.d
+    ADD files/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+    RUN ln -sf /etc/supervisor/supervisord.conf /etc/supervisord.conf
+  context:
+    - filename: files/supervisor/supervisord.conf
+      contents: |
+        ; supervisor configuration file, all program specific configuration blocks
+        ; should be placed in individual files: /etc/supervisor/conf.d/[program].conf
+        ; see the output of `echo_supervisord_conf` for more info.
+
+        [unix_http_server]
+        file=/tmp/supervisor.sock ; (the path to the socket file, cf. [supervisorctl]
+
+        [supervisord]
+        logfile=/var/log/supervisord.log
+        pidfile=/tmp/supervisord.pid
+
+        [supervisorctl]
+        serverurl = unix:///tmp/supervisor.sock
+
+        ; the below section must remain in the config file for supervisorctl to work
+        [rpcinterface:supervisor]
+        supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+        [include]
+        files = /etc/supervisor/conf.d/*.conf
