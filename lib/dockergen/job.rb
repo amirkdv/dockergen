@@ -8,30 +8,32 @@ module DockerGen
 
       def initialize(config)
         @config = config
-        @actions = config.definition['Dockerfile'].flat_map do |item|
-          if item.is_a? String
-            action_def = {dockerfile: item}
-            action_source = "Dockerfile entry #{item}"
-            next Action.new(Action::DOCKERFILE_ENTRY, action_def, action_source)
-          elsif item.is_a? Hash
-            keys = item.keys
-            unless keys & ['snippet', 'vars'] == keys
-              raise DockerGen::Errors::InvalidBuildStep.new(item.to_s)
-            end
-            name = item['snippet']
-            unless @config.snippets.keys.include? name
-              msg = "Failed to locate snippet '#{name}'"
-              raise DockerGen::Errors::InvalidBuildStep.new(msg)
-            end
-            next @config.snippets[name].interpret(item['vars'] || {})
+        @steps = @config.definition['Dockerfile'].map do |definition|
+          DockerGen::Build.parse_build_step(definition)
+        end
+        @required_snippets = @steps.select do |step|
+          step.is_a?(SnippetStep)
+        end.map{|step| step.snippet}
+        @snippets = DockerGen::Build.load_snippets_by_name(@required_snippets,
+                                                           @config.snippet_sources)
+        @actions = @steps.flat_map do |step|
+          if step.is_a? LiteralStep
+            next Action.new(Action::DOCKERFILE_ENTRY,
+                            {dockerfile: step.dockerfile},
+                            "Dockerfile entry '#{step.dockerfile}'")
+          elsif step.is_a? SnippetStep
+            next @snippets[step.snippet].interpret(step.vars)
           else
-            raise DockerGen::Errors::InvalidBuildStep.new(item.to_s)
+            raise DockerGen::Errors::InvalidBuildStep.new(step.to_s)
           end
         end
       end
 
       public
       def generate
+        if @config.build_dir
+          Dir.mkdir(@config.build_dir) unless File.exists?(@config.build_dir)
+        end
         @actions.select{|a| a.external}.each do |action|
           filename = action.filename
           provided_files = @config.definition['assets'].map{|i| i['filename']}
@@ -47,17 +49,17 @@ module DockerGen
           a.dockerfile.strip
         end.join("\n\n")
 
-        update_file('Dockerfile', dockerfile)
-        update_file('Makefile', gen_makefile)
+        update_context('Dockerfile', dockerfile)
+        update_context('Makefile', gen_makefile)
 
         @actions.map do |action|
           if action.type == Action::CONTEXT_FILE
-            update_file(action.filename, action.contents) unless action.external
+            update_context(action.filename, action.contents) unless action.external
           end
         end
       end
 
-      def update_file(context_path, contents)
+      def update_context(context_path, contents)
         path = File.join(@config.build_dir, context_path)
         write = false
         if File.exists?(path)

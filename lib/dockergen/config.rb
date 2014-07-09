@@ -3,12 +3,12 @@ require 'yaml'
 module DockerGen
   module Build
     class Config
-      attr_reader :base_dir
+      attr_reader :def_base_dir
       attr_reader :build_dir
       attr_reader :stdout
       attr_reader :force_update
       attr_reader :definition
-      attr_reader :snippets
+      attr_reader :snippet_sources
 
       def initialize(opts)
         opts = {
@@ -23,14 +23,15 @@ module DockerGen
         @force_update = opts[:force]
         @build_dir = opts[:build_dir]
         @definition = YAML.load_file(@def_yaml)
-        @base_dir = File.expand_path(File.dirname(@def_yaml))
-        @snippets = DockerGen::Build::load_snippets(File.join(@base_dir, 'snippets'))
-        prepare
-      end
-
-      def prepare()
-        if @build_dir
-          Dir.mkdir(@build_dir) unless File.exists?(@build_dir)
+        @def_base_dir = File.expand_path(File.dirname(@def_yaml))
+        sources = @definition['snippet_sources']
+        sources = [sources] if sources.is_a? String
+        @snippet_sources = sources.map do |src|
+          if src[0] == '/'
+            next src
+          else
+            next File.expand_path(File.join(@def_base_dir, src))
+          end
         end
       end
     end

@@ -1,26 +1,36 @@
 module DockerGen
   module Build
-    def self.load_snippets(source_dir)
-      failure_msg = "Failed to load snippets from #{source_dir}"
-      unless File.directory?(source_dir)
-        raise "#{failure_msg}: no such directory"
-      end
-      unless File.readable?(source_dir)
-        raise "#{failure_msg}: cannot open directory"
-      end
+    def self.load_snippets_by_name(names, sources)
       snippets = {}
-      Dir.glob(File.join(source_dir, '*.yml')).each do |source_file|
-        YAML.load_file(source_file).each do |definition|
-          unless definition['name']
-            raise "Cannot have a snippet without a name, in #{source_file}"
-          end
-          name = definition['name']
-          if snippets[name]
-            raise "Cannot redeclare #{definition['name']}, in #{source_file}"
-          end
-          snippets[name] = Snippet.new(definition)
+      yaml_sources = []
+      yaml_sources = sources.flat_map do |src|
+        if File.directory?(src)
+          next Dir.glob(File.join(src, '*.yml' )) +
+               Dir.glob(File.join(src, '*.yaml'))
+        elsif File.exists?(src)
+          next src
+        else
+          STDERR.puts "Failed to locate snippet source '#{src}'"
+          next
         end
-        STDERR.puts "loaded: #{source_file}" if ENV.has_key? 'DEBUG'
+      end.select{|src| src}
+
+      yaml_sources.each do |src|
+        YAML.load_file(src).each do |definition|
+          name = definition['name']
+          next unless name && names.include?(name)
+          if snippets[name]
+            msg = "Cannot redeclare snippet '#{name}' in #{src} (also declared in #{snippets[name].source})"
+            raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
+          end
+          snippets[name] = Snippet.new(definition, src)
+          STDERR.puts "loaded: snippet '#{name}' from #{src}" if ENV.has_key? 'DEBUG'
+        end
+      end
+      names.each do |name|
+        unless snippets.keys.include? name
+          raise DockerGen::Errors::UndefinedSnippet.new("Failed to locate snippet '#{name}'")
+        end
       end
       snippets
     end
@@ -31,8 +41,10 @@ module DockerGen
       attr_reader :dockerfile
       attr_reader :context
       attr_reader :required_vars
+      attr_reader :source
 
-      def initialize(definition)
+      def initialize(definition, source)
+        @source = source
         @description = definition['description']
         @name = definition['name']
         STDERR.puts "initializing snippet #{@name}" if ENV.has_key? 'DEBUG'
