@@ -3,11 +3,11 @@ require 'fileutils'
 module DockerGen
   module Build
     class Job
-      attr_reader :config, :actions
+      attr_reader :config
+      attr_reader :actions
 
       def initialize(config)
         @config = config
-        @components = []
         @actions = config.definition['Dockerfile'].flat_map do |item|
           if item.is_a? String
             action_def = {dockerfile: item}
@@ -25,7 +25,7 @@ module DockerGen
             end
             next @config.snippets[name].interpret(item['vars'] || {})
           else
-            raise DockerGen::Errors::InvalidComponentDefinition.new(item.to_s)
+            raise DockerGen::Errors::InvalidBuildStep.new(item.to_s)
           end
         end
       end
@@ -40,8 +40,21 @@ module DockerGen
             raise DockerGen::Errors::MissingContextFile.new(msg)
           end
         end
+
+        dockerfile = @actions.select do |a|
+          a.type == Action::DOCKERFILE_ENTRY
+        end.map do |a|
+          a.dockerfile.strip
+        end.join("\n\n")
+
         update_file('Dockerfile', dockerfile)
-        update_file('Makefile', makefile)
+        update_file('Makefile', gen_makefile)
+
+        @actions.map do |action|
+          if action.type == Action::CONTEXT_FILE
+            update_file(action.filename, action.contents) unless action.external
+          end
+        end
       end
 
       def update_file(context_path, contents)
@@ -67,18 +80,7 @@ module DockerGen
       end
 
       private
-      def dockerfile
-        @actions.map do |action|
-          case action.type
-          when Action::DOCKERFILE_ENTRY
-            next action.dockerfile
-          when Action::CONTEXT_FILE
-            update_file(action.filename, action.contents) unless action.external
-          end
-        end.join("\n\n").gsub!(/\n\n+/, "\n\n")
-      end
-
-      def makefile
+      def gen_makefile
         raise "No name specified for the generated docker image" unless @config.definition['docker_opts']['build_tag']
         # assets target
         contents = ''

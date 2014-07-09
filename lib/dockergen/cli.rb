@@ -3,7 +3,6 @@ require 'optparse'
 module DockerGen
   module CLI
     def self.init(argv)
-      cli_opts = {}
       parser = CLI::Parser.new
 
       begin

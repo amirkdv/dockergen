@@ -24,7 +24,7 @@ module DockerGen
         @build_dir = opts[:build_dir]
         @definition = YAML.load_file(@def_yaml)
         @base_dir = File.expand_path(File.dirname(@def_yaml))
-        @snippets = DockerGen::Build::load_snippets(File.join(@base_dir, 'snippets_migrate'))
+        @snippets = DockerGen::Build::load_snippets(File.join(@base_dir, 'snippets'))
         prepare
       end
 
