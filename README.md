@@ -47,7 +47,7 @@ Here is a possible definition for the `initialize_apt` snippet used above:
     RUN apt-get update && apt-get install -y python-software-properties
 ```
 which translates to the following in the generated `Dockerfile`:
-```
+```bash
 #===============================================================================
 # configure apt and install apt-add-repository
 #===============================================================================
