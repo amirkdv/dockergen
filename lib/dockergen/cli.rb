@@ -21,10 +21,10 @@ module DockerGen
         end
         return 1
       rescue  DockerGen::Errors::DockerGenError,
-              Errno::ENOENT => e
+              Errno::ENOENT,
+              Errno::EACCES => e
         if ENV.has_key?('DEBUG')
-          STDERR.puts "[#{e.class}] #{e.message}"
-          STDERR.puts e.backtrace if ENV.has_key?('DEBUG')
+          raise e
         else
           STDERR.puts "#{e.message}"
         end
