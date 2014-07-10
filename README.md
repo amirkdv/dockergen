@@ -23,7 +23,9 @@ format) which contains the following (see
 - docker automation configuration: docker run options, built image tag, etc.
 
 The output of `dockergen` is a docker build directory containing at least a
-`Dockerfile` and a `Makefile` with a `build`, `start`, and `assets` targets.
+`Dockerfile` and a `Makefile` with a `build`, `start`, and `assets` targets (see
+[`build_dir_example`](example_build_dir) which is the build directory as defined
+by [`definition.example.yaml`](definition.example.yml).
 
 Snippets
 ========
@@ -111,6 +113,35 @@ Dockerfile:
       mods: rewrite
   - ... # truncated
 ```
+
+Guidelines
+----------
+For better readability and maintainability, you should try and follow these
+guidelines. Dockergen does not enforce any but issues a warning when it catches
+a violation:
+1. Snippets should create their context dependencies under the following
+   subdirectories of the build context (`filename` in each `context` entry):
+   1. `files/` or `scripts/` if the snippet is providing the contents of the
+      file,
+   2. `assets/` if this is an external dependency for which the build definition
+      must provide a `fetch` rule.
+1. Typically snippets want to upload a file from the context to the image. In
+   such cases, as much as possible try and use a path under `/var/build` for the
+   uploaded files. For example, if your snippet adds a script and executes it in
+   the dockerfile use `ADD scripts/[name] /var/build/scripts/[name]`.
+1. Use all lower case snake case for snippet names. Try to order the terms in
+   decreasing order of informativeness, e.g. `mysql_load_dump` is better than
+   `load_mysql_dump`.
+1. Dockergen is smart about updating files in the build directory to avoid
+   unnecessarily disvalidating docker caches. To make the most out of this
+   feature make sure your snippet `ADD`s its dependencies as late as possible.
+1. Since `filename`s in context dependencies can also contain variables. If you
+   decide to use this feature, use `context_[varname]` to indicate that the path
+   is relative to the build context and not a path in the built image.
+1. Dockergen does not perform *any* dependency management. If you snippet makes
+   as an assumption about existing files try and write its Dockerfile commands
+   in such a way that they would fail if your assumptions about satisfied
+   dependencies are false.
 
 Demo
 ====
