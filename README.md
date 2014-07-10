@@ -119,6 +119,7 @@ Guidelines
 For better readability and maintainability, you should try and follow these
 guidelines. Dockergen does not enforce any but issues a warning when it catches
 a violation:
+
 1. Snippets should create their context dependencies under the following
    subdirectories of the build context (`filename` in each `context` entry):
    * `files/` or `scripts/` if the snippet is providing the contents of the
