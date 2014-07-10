@@ -10,10 +10,9 @@ module DockerGen
         elsif File.exists?(src)
           next src
         else
-          STDERR.puts "Failed to locate snippet source '#{src}'"
-          next
+          raise DockerGen::Errors::DockerGenError.new("Failed to locate snippet source '#{src}'")
         end
-      end.select{|src| src}
+      end
 
       yaml_sources.each do |src|
         YAML.load_file(src).each do |definition|
@@ -54,11 +53,11 @@ module DockerGen
           msg = "context must be an array, #{@context.class} given for #{signature}"
           raise DockerGen::InvalidSnippetDefinition.new()
         end
-        scan_list = @dockerfile ? [ @dockerfile ] : []
-        @context.each { |item| item.each { |k,v| scan_list << v } }
-        @required_vars = scan_list.map do |string|
-          string.scan(/%%([^%]+)%%/)
-        end.flatten(2).uniq
+        scan_list = @context.flat_map{|item| item.values}
+        scan_list << @dockerfile if @dockerfile
+        @required_vars = scan_list.map{|str| str.scan(/%%([^%]+)%%/)}
+                                  .flatten(2)
+                                  .uniq
       end
 
       def interpret(defined_vars)
@@ -79,10 +78,12 @@ module DockerGen
         dockerfile_entry = Action.new(Action::DOCKERFILE_ENTRY,
                                       {dockerfile: @dockerfile.strip},
                                       signature)
-        return @context.map do |c|
-          action_def = {filename: c['filename'], contents: c['contents']}
-          Action.new(Action::CONTEXT_FILE, action_def, signature)
-        end.push(dockerfile_entry)
+        context_file_entries = @context.map do |c|
+          Action.new(Action::CONTEXT_FILE,
+                     {filename: c['filename'], contents: c['contents']},
+                     signature)
+        end
+        return context_file_entries + [dockerfile_entry]
       end
 
       private

@@ -16,7 +16,7 @@ module DockerGen
         @source = source
         case @type
         when DOCKERFILE_ENTRY
-          @dockerfile = definition[:dockerfile]
+          @dockerfile = definition[:dockerfile].strip
         when CONTEXT_FILE
           @filename = definition[:filename]
           @contents = definition[:contents]

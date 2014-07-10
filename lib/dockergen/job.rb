@@ -11,9 +11,8 @@ module DockerGen
         @steps = @config.definition['Dockerfile'].map do |definition|
           DockerGen::Build.parse_build_step(definition)
         end
-        @required_snippets = @steps.select do |step|
-          step.is_a?(SnippetStep)
-        end.map{|step| step.snippet}
+        @required_snippets = @steps.select{|s| s.is_a?(SnippetStep)}
+                                   .map{|s| s.snippet}
         @snippets = DockerGen::Build.load_snippets_by_name(@required_snippets,
                                                            @config.snippet_sources)
         @actions = @steps.flat_map do |step|
@@ -43,20 +42,15 @@ module DockerGen
           end
         end
 
-        dockerfile = @actions.select do |a|
-          a.type == Action::DOCKERFILE_ENTRY
-        end.map do |a|
-          a.dockerfile.strip
-        end.join("\n\n")
+        dockerfile = @actions.select{|a| a.type == Action::DOCKERFILE_ENTRY}
+                             .map{|a| a.dockerfile}
+                             .join("\n\n")
 
         update_context('Dockerfile', dockerfile)
         update_context('Makefile', gen_makefile)
 
-        @actions.map do |action|
-          if action.type == Action::CONTEXT_FILE
-            update_context(action.filename, action.contents) unless action.external
-          end
-        end
+        @actions.select{|a| a.type == Action::CONTEXT_FILE && !a.external}
+                .each{|a| update_context(a.filename, a.contents)}
       end
 
       def update_context(context_path, contents)

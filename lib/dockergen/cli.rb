@@ -8,7 +8,8 @@ module DockerGen
       begin
         parser.parse!(argv)
         config = DockerGen::Build::Config.new(parser.opts)
-        job = DockerGen::Build::Job.new(config).generate
+        job = DockerGen::Build::Job.new(config)
+        job.generate
         return 0
       rescue  OptionParser::MissingArgument,
               OptionParser::InvalidArgument,
