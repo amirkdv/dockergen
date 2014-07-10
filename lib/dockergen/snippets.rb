@@ -14,16 +14,17 @@ module DockerGen
         end
       end
 
-      yaml_sources.each do |src|
-        YAML.load_file(src).each do |definition|
+      yaml_sources.each do |source|
+        YAML.load_file(source).each do |definition|
           name = definition['name']
           next unless name && names.include?(name)
           if snippets[name]
-            msg = "Cannot redeclare snippet '#{name}' in #{src} (also declared in #{snippets[name].source})"
+            msg = "Duplicate snippet definition for '#{name}', defined in:\n" +
+                  "  - #{source}\n  - #{snippets[name].source}"
             raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
           end
-          snippets[name] = Snippet.new(definition, src)
-          STDERR.puts "loaded: snippet '#{name}' from #{src}" if ENV.has_key? 'DEBUG'
+          snippets[name] = Snippet.new(definition, source)
+          STDERR.puts "loaded: snippet '#{name}' from #{source}" if ENV.has_key? 'DEBUG'
         end
       end
       names.each do |name|
@@ -74,7 +75,7 @@ module DockerGen
         else
           STDERR.puts "[warning] Description is empty for #{signature}"
         end
-        @context.each {|item| item.each {|k,v| v = filter_vars(v, defined_vars)}}
+        @context.each {|item| item.each {|_,v| v = filter_vars(v, defined_vars)}}
         context_files = @context.map do |c|
           ContextFile.new(signature, c['filename'], c['contents'])
         end

@@ -1,6 +1,6 @@
 snippet_sources: ./snippets/_updated_format.yml
 
-Dockerfile:
+dockerfile:
   - FROM ubuntu:12.04
   - snippet: initialize_apt
   - snippet: supervisor

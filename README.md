@@ -12,28 +12,18 @@ following:
 - documentation: each snippet has a description that can be of any length and is
   included in the appropriate section in the generated Dockerfile.
 
-Each invocation of `dockergen` requires a build defintion file which contains
-the following:
+Each invocation of `dockergen` requires a build defintion file (again in YAML
+format) which contains the following (see
+[`definition.example.yml`](definition.example.yml)):
 
+- paths to files or directories where referenced snippets are to be found,
 - a sequence of snippets or literal Dockerfile commands,
 - fetch rules for context dependencies that snippets declare but do not provide
   contents for (e.g. database dumps, CVS repos)
 - docker automation configuration: docker run options, built image tag, etc.
 
-For example:
-```yaml
-Dockerfile:
-  - FROM ubuntu:12.04
-  - snippet: initialize_apt
-  - snippet: supervisor
-  - CMD ["supervisord", "-c", "/etc/supervisord.conf", "-n"]
-
-docker_opts:
-  build_tag: amirkdv/dummy_app
-  run_opts: --publish 8001:80
-```
 The output of `dockergen` is a docker build directory containing at least a
-`Dockerfile` and a `Makefile`.
+`Dockerfile` and a `Makefile` with a `build`, `start`, and `assets` targets.
 
 Snippets
 ========

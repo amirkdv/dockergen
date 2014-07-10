@@ -22,7 +22,7 @@ module DockerGen
       attr_reader :external
 
       def initialize(*args, filename, contents)
-        super(args)
+        super(*args)
         @filename = filename
         raise DockerGen::Errors::InvalidActionDefinition unless @filename
         @contents = contents
