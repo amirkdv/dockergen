@@ -1,0 +1,17 @@
+<VirtualHost *:80>
+  ServerName default
+  ServerAlias default
+  DocumentRoot /var/www/example
+  RewriteEngine On
+
+  <Directory /var/www/example>
+    Options FollowSymLinks
+    AllowOverride All
+    Order allow,deny
+    Allow from all
+  </Directory>
+
+  LogLevel info
+  ErrorLog /var/log/apache2/hello-error.log
+  CustomLog /var/log/apache2/hello-access.log combined
+</VirtualHost>

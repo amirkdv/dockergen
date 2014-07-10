@@ -24,8 +24,8 @@ format) which contains the following (see
 
 The output of `dockergen` is a docker build directory containing at least a
 `Dockerfile` and a `Makefile` with a `build`, `start`, and `assets` targets (see
-[`build_dir_example`](example_build_dir) which is the build directory as defined
-by [`definition.example.yaml`](definition.example.yml).
+the [output](example) build directory as defined
+by [`definition.example.yaml`](definition.example.yml)).
 
 Snippets
 ========
