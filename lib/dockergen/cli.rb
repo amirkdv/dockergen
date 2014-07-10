@@ -21,7 +21,7 @@ module DockerGen
       rescue  DockerGen::Errors::DockerGenError,
               Errno::ENOENT,
               Errno::EACCES => e
-        STDERR.puts "#{e.class} #{e.message}"
+        STDERR.puts "[#{e.class}]\n    #{e.message}"
         STDERR.puts e.backtrace if ENV.has_key?('DEBUG')
         return 1
       end

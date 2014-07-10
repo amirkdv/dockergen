@@ -24,7 +24,6 @@ module DockerGen
       def initialize(*args, filename, contents)
         super(*args)
         @filename = filename
-        raise DockerGen::Errors::InvalidActionDefinition unless @filename
         @contents = contents
         @external = ( @contents == nil )
       end

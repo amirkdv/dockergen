@@ -35,6 +35,31 @@ module DockerGen
       snippets
     end
 
+    def self.check_snippet_definition(definition)
+      unless definition['name']
+        msg = "A snippet in #{source} does not have a name"
+        raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
+      end
+      if definition['context']
+        definition['context'].each do |c|
+          if c['filename'].nil?
+            msg = "snippet '#{definition['name']}' has a context entry without a filename"
+            raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
+          elsif c['filename'].index('files/') != 0 &&
+                c['filename'].index('scripts/') != 0 &&
+                c['contents']
+            STDERR.puts "warning: snippets should place all their files in " +
+                        "'files/' or 'scripts/', snippet " +
+                        "'#{definition['name']}' creates '#{c['filename']}'"
+          end
+        end
+      end
+      unless definition['context'] || definition['dockerfile']
+        msg = "snippet '#{definition['name']}' has no context or dockerfile entries"
+        raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
+      end
+    end
+
     class Snippet
       attr_reader :description
       attr_reader :name
@@ -44,16 +69,13 @@ module DockerGen
       attr_reader :source
 
       def initialize(definition, source)
+        Build.check_snippet_definition(definition)
+        STDERR.puts "initializing snippet #{definition['name']}" if ENV.has_key? 'DEBUG'
         @source = source
         @description = definition['description']
         @name = definition['name']
-        STDERR.puts "initializing snippet #{@name}" if ENV.has_key? 'DEBUG'
         @dockerfile = definition['dockerfile']
         @context = definition['context'] || []
-        unless @context.is_a? Array
-          msg = "context must be an array, #{@context.class} given for #{signature}"
-          raise DockerGen::InvalidSnippetDefinition.new()
-        end
         scan_list = @context.flat_map{|item| item.values}
         scan_list << @dockerfile if @dockerfile
         @required_vars = scan_list.map{|str| str.scan(/%%([^%]+)%%/)}

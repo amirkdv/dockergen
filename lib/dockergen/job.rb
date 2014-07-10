@@ -2,7 +2,7 @@ require 'fileutils'
 
 module DockerGen
   module Build
-    def self.check_definition(definition)
+    def self.check_build_definition(definition)
       unless definition['dockerfile']
         msg = "definition contains no 'dockerfile' key"
         raise DockerGen::Errors::InvalidDefinitionFile.new(msg)
@@ -25,7 +25,7 @@ module DockerGen
       attr_reader :assets
 
       def initialize(config)
-        Build.check_definition(config.definition)
+        Build.check_build_definition(config.definition)
         @config = config
         @docker_opts = @config.definition['docker_opts'] || {}
         @assets = @config.definition['assets'] || []
@@ -46,6 +46,19 @@ module DockerGen
             raise DockerGen::Errors::InvalidBuildStep.new(step.to_s)
           end
         end
+
+        # detect multiple snippets claiming the same context dependency
+        files = {}
+        @actions.select{|a| a.is_a?(ContextFile)}.each do |action|
+          next if !action.contents
+          if files.has_key? action.filename
+            msg = "Snippets #{action.source_description} and " +
+                  "#{files[action.filename]} both want to create #{action.filename}"
+            raise DockerGen::Errors::InvalidBuildStep.new(msg)
+          else
+            files[action.filename] = action.source_description
+          end
+        end
       end
 
       public
@@ -53,8 +66,10 @@ module DockerGen
         if @config.build_dir
           Dir.mkdir(@config.build_dir) unless File.exists?(@config.build_dir)
         end
+        # check if all external dependencies have a fetch rule
         @actions.select{|a| a.is_a?(ContextFile) && a.external}.each do |a|
-          unless @external_files.include?(a.filename)
+          # if a/b has a fetch rule assume it also provides a/b/c
+          if @external_files.select{|f| a.filename.index(f) == 0}.empty?
             msg = "no fetch rule given for context dependency '#{a.filename}' (required by #{a.source_description})"
             raise DockerGen::Errors::MissingContextFile.new(msg)
           end
@@ -96,23 +111,16 @@ module DockerGen
       private
       def gen_makefile
         targets = []
-
-        # assets
         @assets.each do |a|
           targets << "#{a['filename']}:\n\t#{a['fetch'].strip.gsub(/\n/, "\n\t")}"
         end
         targets << "assets: #{@external_files.join(' ')}"
-
-        # build
-        targets << "build: assets\n\tdocker build -t #{@docker_opts['build_tag']} ."
-
-        # build_no_cache
-        targets << "build_no_cache: assets\n\tdocker build --no-cache -t #{@docker_opts['build_tag']} ."
-
-        # start
         opts = @docker_opts['run_opts'] || []
-        targets << "start:\n\tdocker run #{opts.join(' ')} #{@docker_opts['build_tag']}"
-
+        unless opts.empty?
+          targets << "build: assets\n\tdocker build -t #{@docker_opts['build_tag']} ."
+          targets << "build_no_cache: assets\n\tdocker build --no-cache -t #{@docker_opts['build_tag']} ."
+          targets << "start:\n\tdocker run #{opts.join(' ')} #{@docker_opts['build_tag']}"
+        end
         return targets.join("\n\n") + "\n"
       end
     end
