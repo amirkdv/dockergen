@@ -2,12 +2,29 @@ require 'fileutils'
 
 module DockerGen
   module Build
+    def self.check_definition(definition)
+      unless definition['dockerfile']
+        msg = "definition contains no 'dockerfile' key"
+        raise DockerGen::Errors::InvalidDefinitionFile.new(msg)
+      end
+      if definition['docker_opts'] && ! definition['docker_opts']['build_tag']
+        raise InvalidDefinitionFile.new("docker_opts does not have a build_tag")
+      end
+      if definition['assets']
+        definition['assets'].each do |asset|
+          unless asset['filename']
+            raise DockerGen::Errors::InvalidDefinitionFile.new("All assets must have a filename")
+          end
+        end
+      end
+    end
     class Job
       attr_reader :config
       attr_reader :steps
       attr_reader :actions
 
       def initialize(config)
+        Build.check_definition(config.definition)
         @config = config
         @steps = @config.definition['Dockerfile'].map do |definition|
           DockerGen::Build.parse_build_step(definition)
