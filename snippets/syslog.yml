@@ -1,24 +1,24 @@
 - name: syslogd
   description: Install and configure syslogd # see alternative syslog-ng snippet
-  steps:
-  - run: apt-get install -y sysklogd
-  - add:
-      destination: /etc/supervisor/conf.d/syslog.conf
-      filename: supervisor/syslogd.conf
-      contents: |
-        ; supervisor configuration for syslogd
-        [program:syslog]
-        command=/sbin/syslogd -u syslog -n
+  dockerfile: |
+    RUN apt-get install -y sysklogd
+    ADD files/supervisor/syslog.conf /etc/supervisor/conf.d/syslog.conf
+  context:
+  - filename: files/supervisor/syslog.conf
+    contents: |
+      ; supervisor configuration for syslogd
+      [program:syslog]
+      command=/sbin/syslogd -u syslog -n
 
 - name: syslog-ng
   description: Install and configure syslog-ng # see alternative syslog snippet
-  steps:
-  - run: apt-get install -y syslog-ng
-  - run: mkdir /var/lib/syslog-ng
-  - add:
-      destination: /etc/supervisor/conf.d/syslog-ng.conf
-      filename: supervisor/syslog-ng.conf
-      contents: |
-        ; supervisor configuration for syslog-ng
-        [program:syslog-ng]
-        command = /usr/sbin/syslog-ng -p /var/run/syslog-ng.pid -F
+  dockerfile: |
+    RUN apt-get install -y syslog-ng
+    RUN mkdir /var/lib/syslog-ng
+    ADD files/supervisor/syslog-ng.conf /etc/supervisor/conf.d/syslog-ng.conf
+  context:
+  - filename: supervisor/syslog-ng.conf
+    contents: |
+      ; supervisor configuration for syslog-ng
+      [program:syslog-ng]
+      command = /usr/sbin/syslog-ng -p /var/run/syslog-ng.pid -F

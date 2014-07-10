@@ -1,36 +1,51 @@
-- name: drush
-  description: install drush via composer
-  steps:
-  - run: composer global require drush/drush:6.*
-  - run: ln -sf /.composer/vendor/drush/drush/drush /usr/local/bin/drush
+- name: drupal_php5_modules
+  description: Install common PHP5 modules for Drupal
+  dockerfile: RUN apt-get install -y php5-curl php5-gd php5-memcache php-apc
 
-- name: adjust_drupal_docroot
+- name: drupal_drush6
+  description: |
+    Install drush 6.x via composer
+    Assumes that COMPOSER_HOME is properly populated
+  dockerfile: |
+    RUN composer global require drush/drush:6.*
+    RUN ln -sf $COMPOSER_HOME/vendor/drush/drush/drush /usr/local/bin/drush
+
+- name: drupal_docroot_permissions
   description: populate settings.local.php and fix docroot file permissions
-  steps:
-  - run: sed -i 's/settings-priv\.php/settings.local.php/' /var/www/sites/default/settings.php
-  - run: |
-      for dir in %%drupal_writable_dirs%%; do \
-        test -d "/var/www/$dir" || mkdir -p "/var/www/$dir"; \
-        chown -R www-data "/var/www/$dir" && chmod -R u+w "/var/www/$dir"; \
-      done
-  - add:
-      destination: /var/www/sites/default/settings.local.php
-      filename: settings.local.php
-      contents: |
-        <?php
-        // settings.local.php for D6 and D7, to be included from settings.php
-        $db_url = "mysql://%%mysql_user%%:%%mysql_password%%@localhost/%%mysql_database%%";
-        $databases['default']['default'] = array(
-          'database' => '%%mysql_database%%',
-          'username' => '%%mysql_user%%',
-          'password' => '%%mysql_password%%',
-          'host' => 'localhost',
-          'driver' => 'mysql',
-          'port' => 3306,
-          'prefix' => '',
-        );
+  dockerfile: |
+      RUN docroot="%%docroot%%" && \
+          chgrp sudo -R $docroot && \
+          chmod -R g=rws $docroot && \
+          chown -R www-data:sudo $docroot
+      RUN docroot="%%docroot%%" && \
+          find "$docroot" -type f -print0 | xargs -0 chmod u=r,g=rw,o-rwx && \
+          find "$docroot" -type d -print0 | xargs -0 chmod u=rx,g=rwx,o-rwx
+      RUN cd "%%docroot%%" && \
+          for dir in "%%writable_dirs%%"; do \
+            test -d "$dir" || mkdir -p "$dir"; \
+            chown -R www-data "$dir" && chmod -R u+w "$dir"; \
+          done
 
-- name: drupal_cron
+- name: drupal_settings.local.php
+  description: Create settings.local.php for Drupal
+  dockerfile: ADD files/settings.local.php %%docroot%%/sites/default/settings.local.php
+  context:
+  - filename: files/settings.local.php
+    contents: |
+      <?php
+      // settings.local.php for D6 and D7, to be included from settings.php
+      $db_url = "mysql://%%mysql_user%%:%%mysql_password%%@localhost/%%mysql_database%%";
+      $databases['default']['default'] = array(
+        'database' => '%%mysql_database%%',
+        'username' => '%%mysql_user%%',
+        'password' => '%%mysql_password%%',
+        'host' => 'localhost',
+        'driver' => 'mysql',
+        'port' => 3306,
+        'prefix' => '',
+      );
+
+- name: drupal_install_cron
   description: Assign 'drush cron' as cronjob for user www-data
-  steps:
-  - run: echo "0 *  *    *  *  /usr/bin/env COLUMNS=72 /usr/local/bin/drush --root=/var/www --uri=http://default --quiet cron" | crontab -u www-data -
+  dockerfile: |
+    RUN echo "0 *  *    *  *  /usr/bin/env COLUMNS=72 /usr/local/bin/drush --root=/var/www --uri=http://default --quiet cron" | crontab -u www-data -

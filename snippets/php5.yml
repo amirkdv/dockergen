@@ -1,12 +1,18 @@
-- name: php5_basics
-  description: install PHP and apache/mysql modules
-  steps:
-  - run: apt-get install -y php5 php5-dev php5-cli php5-mysql libapache2-mod-php5
+- name: php5
+  description: Install PHP5 (only the basic packages)
+  dockerfile: RUN apt-get install -y php5-cli php5-dev php5-common
 
-- name: php5_modules
-  description: install extra PHP modules used by Drupal
-  steps:
-  - run: apt-get install -y php5-curl php5-gd php5-memcache php-apc
+- name: php5_apache2
+  description: Install PHP modules for Apache integration
+  dockerfile: RUN apt-get install -y libapache2-mod-php5
+
+- name: php5_mysql
+  description: Install PHP5 modules for MySQL integration
+  dockerfile: RUN apt-get install -y php5-mysql
+
+- name: php5_pear
+  description: Install PEAR and common libraries for building PEAR packages.
+  dockerfile: RUN apt-get install -y php5-dev build-essential php-pear libpcre3-dev
 
 - name: composer
   description: |
@@ -18,10 +24,8 @@
     - Non-root users in logins shells still can use Composer, but they will not
       have access to the root user's globally required packages in `/root/vendor`.
     - See https://getcomposer.org/download/
-  steps:
-  - run: mkdir -p /usr/share/composer
-  - env:
-      name: COMPOSER_HOME
-      value: /root
-  - run: wget https://getcomposer.org/composer.phar -O /usr/local/bin/composer
-  - run: chmod +x /usr/local/bin/composer
+  dockerfile: |
+    RUN mkdir -p /usr/share/composer
+    ENV COMPOSER_HOME /root
+    RUN wget https://getcomposer.org/composer.phar -O /usr/local/bin/composer
+    RUN chmod +x /usr/local/bin/composer

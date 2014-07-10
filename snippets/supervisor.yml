@@ -1,30 +1,29 @@
 - name: supervisor
   description: install supervisor with minimal configuration
-  steps:
-  - run: apt-get install -y python-setuptools && easy_install supervisor
-  - run: mkdir -p /etc/supervisor/conf.d
-  - add:
-      destination:  /etc/supervisor/supervisord.conf
-      filename: supervisor/supervisord.conf
-      contents: |
-        ; supervisor configuration file, all program specific configuration blocks
-        ; should be placed in individual files: /etc/supervisor/conf.d/[program].conf
-        ; see the output of `echo_supervisord_conf` for more info.
+  dockerfile: |
+    RUN apt-get install -y python-setuptools && easy_install supervisor
+    RUN mkdir -p /etc/supervisor/conf.d
+    ADD files/supervisor/supervisord.conf /etc/supervisord.conf
+  context:
+  - filename: files/supervisor/supervisord.conf
+    contents: |
+      ; supervisor configuration file, all program specific configuration blocks
+      ; should be placed in individual files: /etc/supervisor/conf.d/[program].conf
+      ; see the output of `echo_supervisord_conf` for more info.
 
-        [unix_http_server]
-        file=/tmp/supervisor.sock ; (the path to the socket file, cf. [supervisorctl]
+      [unix_http_server]
+      file=/tmp/supervisor.sock ; (the path to the socket file, cf. [supervisorctl]
 
-        [supervisord]
-        logfile=/var/log/supervisord.log
-        pidfile=/tmp/supervisord.pid
+      [supervisord]
+      logfile=/var/log/supervisord.log
+      pidfile=/tmp/supervisord.pid
 
-        [supervisorctl]
-        serverurl = unix:///tmp/supervisor.sock
+      [supervisorctl]
+      serverurl = unix:///tmp/supervisor.sock
 
-        ; the below section must remain in the config file for supervisorctl to work
-        [rpcinterface:supervisor]
-        supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+      ; the below section must remain in the config file for supervisorctl to work
+      [rpcinterface:supervisor]
+      supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
 
-        [include]
-        files = /etc/supervisor/conf.d/*.conf
-  - run: ln -sf /etc/supervisor/supervisord.conf /etc/supervisord.conf
+      [include]
+      files = /etc/supervisor/conf.d/*.conf

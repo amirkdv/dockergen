@@ -1,38 +1,30 @@
-- name: add_assets
-  description: upload the assets directory
-  steps:
-  - inline: ADD assets /var/build/assets
-
 - name: disable_init
   description: |
     Disable initctl as it conflicts with docker build,
     see https://github.com/dotcloud/docker/issues/2276
-  steps:
-  - run: dpkg-divert --local --rename --add /sbin/initctl && ln -s -f /bin/true /sbin/initctl
+  dockerfile: |
+    RUN dpkg-divert --local --rename --add /sbin/initctl
+    RUN ln -s -f /bin/true /sbin/initctl
 
 - name: basic_utils
-  description: install common utilities used in provisioning commnads
-  steps:
-  - run: apt-get install -y sudo pv git curl gzip curl wget
+  description: Install common utilities used in provisioning commands
+  dockerfile: |
+    RUN apt-get install -y python-software-properties
+    RUN apt-get install -y netcat-openbsd curl wget
+    RUN apt-get install -y sudo pv git gzip
 
 - name: dev_basics
-  description: install common dev/admin utilities
-  steps:
-  - run: apt-get install -y vim man-db psmisc tcpdump iputils-ping netcat-openbsd
-
-- name: set_root_password
-  description: Set the root password for SSH access
-  steps:
-  - run: echo "root:%%root_password%%" | chpasswd
+  description: Install common dev/admin utilities
+  dockerfile: RUN apt-get install -y vim man-db psmisc tcpdump iputils-ping netcat-openbsd
 
 - name: cron
   description: Install and configure cron under supervisor control
-  steps:
-  - run: apt-get install -y cron
-  - add:
-      destination: /etc/supervisor/conf.d/cron.conf
-      filename: supervisor/cron.conf
-      contents: |
-        ; Supervisor configuration for cron
-        [program:cron]
-        command = /usr/sbin/cron -f
+  dockerfile: |
+    RUN apt-get install -y cron
+    ADD files/supervisor/cron.conf /etc/supervisor/conf.d/cron.conf
+  context:
+  - filename: files/supervisor/cron.conf
+    contents: |
+      ; Supervisor configuration for cron
+      [program:cron]
+      command = /usr/sbin/cron -f

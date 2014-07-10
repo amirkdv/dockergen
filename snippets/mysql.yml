@@ -1,29 +1,30 @@
 - name: mysql
-  description: install MySQL and configure it under supervisor control
-  steps:
-  - run: apt-get install -y mysql-server
-  - add:
-      destination: /etc/supervisor/conf.d/mysql.conf
-      filename: supervisor/mysql.conf
-      contents: |
-        ; supervisor configuration for MySQL server, the following assumes that syslog
-        ; is installed and running. If syslog is not present, use mysql_nosyslog.conf instead
-        [program:mysql]
-        command = /usr/local/bin/pidproxy /var/run/mysqld/mysqld.pid /usr/bin/mysqld_safe
+  description: Install MySQL server and configure it under supervisor control
+  dockerfile: |
+    RUN apt-get install -y mysql-server
+    ADD files/supervisor/mysql.conf /etc/supervisor/conf.d/mysql.conf
+  context:
+  - filename: files/supervisor/mysql.conf
+    contents: |
+      ; supervisor configuration for MySQL server, the following assumes that syslog
+      ; is installed and running. If syslog is not present, use mysql_nosyslog.conf instead
+      [program:mysql]
+      command = /usr/local/bin/pidproxy /var/run/mysqld/mysqld.pid /usr/bin/mysqld_safe
 
-- name: initialize_mysql
-  description: set mysql root password and grant privilege to app user
-  steps:
-  - run: |
-      supervisord -c /etc/supervisord.conf && sleep 5s && \
-      mysqladmin -u root password '%%mysql_root_password%%' && \
-      echo "CREATE DATABASE %%mysql_database%%; \
-        GRANT ALL ON %%mysql_database%%.* TO '%%mysql_user%%'@'localhost' IDENTIFIED BY '%%mysql_password%%'; \
-        FLUSH PRIVILEGES;" | mysql -u root -p'%%mysql_root_password%%'
+- name: mysql_initialize
+  description: Set mysql root password and grant privilege to app user
+  dockerfile: |
+    RUN supervisord -c /etc/supervisord.conf && sleep 5s && \
+        mysqladmin -u root password '%%root_password%%' && \
+        echo "CREATE DATABASE %%database%%; \
+          GRANT ALL ON %%database%%.* TO '%%user%%'@'localhost' IDENTIFIED BY '%%password%%'; \
+          FLUSH PRIVILEGES;" | mysql -u root -p'%%root_password%%'
 
-- name: load_mysql_dump
-  description: populate MySQL database from dump file
-  steps:
-  - run: |
-      supervisord -c /etc/supervisor/supervisord.conf && sleep 5s && \
-      zless /var/build/%%mysql_dump_path%% | mysql -u root -p'%%mysql_root_password%%' -D %%mysql_database%%
+- name: mysql_load_dump
+  description: Populate MySQL database from dump file
+  dockerfile: |
+    ADD %%context_dump_path%% %%dump_path%%
+    RUN supervisord -c /etc/supervisord.conf && sleep 5s && \
+        zless %%dump_path%% | mysql -u %%user%% -p'%%password%%' -D %%database%%
+  context:
+  - filename: '%%context_dump_path%%'

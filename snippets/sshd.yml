@@ -1,14 +1,14 @@
 - name: sshd
-  description: install ssh server and add corresponding supervisord program
-  steps:
-  - run: apt-get install -y openssh-server
-  - run: mkdir /var/run/sshd
-  - add:
-      destination: /etc/supervisor/conf.d/sshd.conf
-      filename: supervisor/sshd.conf
-      contents: |
-        ; supervisor configuration for SSH daemon, the following assumes that syslog is
-        ; installed and running, otherwise you will not get your logs in /var/log/auth.log
-        ; if syslog is not present use sshd_nosyslog.conf instead
-        [program:sshd]
-        command = /usr/sbin/sshd -D
+  description: Install ssh server and configure it under supervisor control
+  dockerfile: |
+    RUN apt-get install -y openssh-server
+    RUN mkdir /var/run/sshd
+    ADD files/supervisor/sshd.conf /etc/supervisor/conf.d/sshd.conf
+  context:
+  - filename: files/supervisor/sshd.conf
+    contents: |
+      ; supervisor configuration for SSH daemon, the following assumes that syslog is
+      ; installed and running, otherwise you will not get your logs in /var/log/auth.log
+      ; if syslog is not present use sshd_nosyslog.conf instead
+      [program:sshd]
+      command = /usr/sbin/sshd -D

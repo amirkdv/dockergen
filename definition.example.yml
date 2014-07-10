@@ -1,19 +1,19 @@
-snippet_sources: ./snippets/_updated_format.yml
+snippet_sources: ./snippets
 
 dockerfile:
   - FROM ubuntu:12.04
-  - snippet: initialize_apt
+  - snippet: apt_initialize
   - snippet: supervisor
   - snippet: apache2
     vars:
       listen_ports: 80
-      mods:
   - snippet: apache_2.2_site
     vars:
       docroot: /var/www/example
-      docroot_local: assets/site
+      context_docroot: assets/site
       name: hello
       port: 80
+      mods: rewrite
   - CMD ["supervisord", "-c", "/etc/supervisord.conf", "-n"]
 
 assets:

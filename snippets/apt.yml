@@ -1,13 +1,31 @@
-- name: initialize_apt
-  description: configure apt
-  steps:
-  - env:
-      name: DEBIAN_FRONTEND
-      value: noninteractive
-  - run: apt-get update && apt-get install -y python-software-properties
+- name: apt_initialize
+  description: |
+    Configure apt and install basic utilities used by other provisioning commands
+  dockerfile: |
+    ENV DEBIAN_FRONTEND noninteractive
+    RUN apt-get update
 
-- name: squid_deb_proxy
-  description: configure container to use squid-deb-proxy
-  steps:
-  - run: echo 'Acquire::http::Proxy "%%squid_deb_proxy_url%%";' > /etc/apt/apt.conf.d/30squid-deb-proxy
-  - run: echo 'Acquire::http::Proxy::ppa.launchpad.net DIRECT;' >> /etc/apt/apt.conf.d/30squid-deb-proxy
+- name: apt_find_squid_deb_proxy
+  description: configure apt to use squid-deb-proxy if a proxy server is found
+  dockerfile: |
+    RUN which nc >/dev/null || apt-get install -y netcat-openbsd
+    ADD scripts/find_squid_deb_proxy /var/build/scripts/find_squid_deb_proxy
+    RUN bash /var/build/scripts/find_squid_deb_proxy && apt-get update
+  context:
+  - filename: scripts/find_squid_deb_proxy
+    contents: |
+      #!/bin/bash
+
+      [[ -z $ip ]] && ip="$( ip route show | grep ^default | sed 's/^default via \([0-9\.]\+\).*$/\1/' )"
+      [[ -z $port ]] && port=8000
+      [[ -z $conf_path ]] && conf_path=/etc/apt/apt.conf.d/30proxy
+      url=http://$ip:$port
+
+      if timeout 5 bash -c "echo 'HEAD /' | nc $ip $port | grep -q squid-deb-proxy"; then
+        printf "detected squid deb proxy at $url\n" >&2
+        printf 'Acquire::http::Proxy "%s";\n' $url >> "$conf_path"
+        printf 'Acquire::http::Proxy::ppa.launchpad.net DIRECT;\n' >> "$conf_path"
+      else
+        printf "No squid-deb-proxy detected at $url\n" >&2
+        exit 1
+      fi
