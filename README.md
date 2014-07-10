@@ -25,7 +25,29 @@ format) which contains the following (see
 The output of `dockergen` is a docker build directory containing at least a
 `Dockerfile` and a `Makefile` with a `build`, `start`, and `assets` targets (see
 the [output](example) build directory as defined
-by [`definition.example.yaml`](definition.example.yml)).
+by [`definition.example.yaml`](definition.example.yml)). To reproduce the
+results:
+```bash
+git clone http://github.com/amirkdv/dockergen
+cd dockergen
+
+bin/dockergen -d definition.example.yml -b apache_app
+# [created]      apache_app_build/files/supervisor/supervisord.conf
+# [created]      apache_app_build/files/supervisor/apache.conf
+# [created]      apache_app_build/files/apache_vhost
+# [created]      apache_app_build/Dockerfile
+# [created]      apache_app_build/Makefile
+
+make -C apache_app/ build
+# docker build logs ...
+
+make -C apache_app/ start
+# starts the container in the foreground
+
+# in a separate tab:
+curl localhost:8001
+# Hello World
+```
 
 Snippets
 ========
@@ -144,77 +166,3 @@ a violation:
    in such a way that they would fail if your assumptions about satisfied
    dependencies are false.
 
-Demo
-====
-
-The example defintion file (`definition.example.yml`) installs and configures
-Apache under Supervisor and creates a `Hello World` Apache site served on port
-8001 of the docker host.
-
-* First:
-
-        git clone http://github.com/amirkdv/dockergen
-        cd dockergen
-
-* Generate the docker build directory:
-
-        bin/dockergen --definition definition.example.yml --build-dir apache_app_build
-        # [created]      apache_app_build/files/supervisor/supervisord.conf
-        # [created]      apache_app_build/files/supervisor/apache.conf
-        # [created]      apache_app_build/files/apache_vhost
-        # [created]      apache_app_build/Dockerfile
-        # [created]      apache_app_build/Makefile
-
-  This will create the direcory `apache_app_build` with the following contents:
-
-      tree apache_app_build/
-      # apache_app_build/
-      # |-- Dockerfile
-      # |-- files
-      # |   |-- apache_vhost
-      # |   `-- supervisor
-      # |       |-- apache.conf
-      # |       `-- supervisord.conf
-      # `-- Makefile
-
-* Build the docker image using the prepopulated `make build` target:
-
-        make -C apache_app_build/ build
-        # mkdir -p assets/site && echo 'Hello World' > assets/site/index.html
-        # docker build --tag apache_app .
-        # ... [docker build logs]
-        # Successfully built cda5f6b6bb4d
-
-  Note that the prerequisite `assets` target is responsible for creating the
-  dependency of the `apache_2.2_site` snippet on the directory `assets/site` to
-  exist in the context. The following is the directory structure after `make build`:
-
-      tree apache_app_build/
-      # apache_app_build/
-      # |-- assets
-      # |   `-- site
-      # |       `-- index.html
-      # |-- Dockerfile
-      # |-- files
-      # |   |-- apache_vhost
-      # |   `-- supervisor
-      # |       |-- apache.conf
-      # |       `-- supervisord.conf
-      # `-- Makefile
-
-* Start the docker container:
-
-        make -C apache_app_build/ start
-        # docker run --name ct_apache_app --publish 8001:80 amirkdv/apache_app
-        # 2014-07-09 17:06:53,391 CRIT Supervisor running as root (no user in config file)
-        # 2014-07-09 17:06:53,391 WARN Included extra file "/etc/supervisor/conf.d/apache.conf" during parsing
-        # 2014-07-09 17:06:53,426 INFO RPC interface 'supervisor' initialized
-        # 2014-07-09 17:06:53,427 CRIT Server 'unix_http_server' running without any HTTP authentication checking
-        # 2014-07-09 17:06:53,428 INFO supervisord started with pid 1
-        # 2014-07-09 17:06:54,431 INFO spawned: 'apache' with pid 10
-        # 2014-07-09 17:06:55,454 INFO success: apache entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
-
-* Use the container:
-
-        curl localhost:8001
-        # Hello World
