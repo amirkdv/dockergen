@@ -121,9 +121,9 @@ guidelines. Dockergen does not enforce any but issues a warning when it catches
 a violation:
 1. Snippets should create their context dependencies under the following
    subdirectories of the build context (`filename` in each `context` entry):
-   1. `files/` or `scripts/` if the snippet is providing the contents of the
+   * `files/` or `scripts/` if the snippet is providing the contents of the
       file,
-   2. `assets/` if this is an external dependency for which the build definition
+   * `assets/` if this is an external dependency for which the build definition
       must provide a `fetch` rule.
 1. Typically snippets want to upload a file from the context to the image. In
    such cases, as much as possible try and use a path under `/var/build` for the
