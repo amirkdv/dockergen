@@ -13,21 +13,15 @@ module DockerGen
       rescue  OptionParser::MissingArgument,
               OptionParser::InvalidArgument,
               OptionParser::InvalidOption => e
-        if ENV.has_key?('DEBUG')
-          STDERR.puts "[#{e.class}] #{e.message}"
-          STDERR.puts e.backtrace if ENV.has_key?('DEBUG')
-        else
-          STDERR.puts "#{e.message}\n\n#{parser.help}"
-        end
+        STDERR.puts "[#{e.class}] #{e.message}"
+        STDERR.puts e.backtrace if ENV.has_key?('DEBUG')
+        STDERR.puts "\n#{parser.help}" unless ENV.has_key?('DEBUG')
         return 1
       rescue  DockerGen::Errors::DockerGenError,
               Errno::ENOENT,
               Errno::EACCES => e
-        if ENV.has_key?('DEBUG')
-          raise e
-        else
-          STDERR.puts "#{e.message}"
-        end
+        STDERR.puts "#{e.class} #{e.message}"
+        STDERR.puts e.backtrace if ENV.has_key?('DEBUG')
         return 1
       end
     end
