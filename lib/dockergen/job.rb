@@ -22,11 +22,15 @@ module DockerGen
       attr_reader :config
       attr_reader :steps
       attr_reader :actions
+      attr_reader :assets
 
       def initialize(config)
         Build.check_definition(config.definition)
         @config = config
-        @steps = @config.definition['Dockerfile'].map do |definition|
+        @docker_opts = @config.definition['docker_opts'] || {}
+        @assets = @config.definition['assets'] || []
+        @external_files = @assets.map{|a| a['filename']}
+        @steps = @config.definition['dockerfile'].map do |definition|
           DockerGen::Build.parse_build_step(definition)
         end
         @required_snippets = @steps.select{|s| s.is_a?(SnippetStep)}
@@ -91,33 +95,25 @@ module DockerGen
 
       private
       def gen_makefile
-        raise "No name specified for the generated docker image" unless @config.definition['docker_opts']['build_tag']
-        # assets target
-        contents = ''
+        targets = []
 
-        # assets target
-        assets = config.definition['assets'] || []
-        assets_target = 'assets: '
-        assets.each do |asset|
-          destination = asset['filename']
-          action = asset['fetch']
-          contents += destination + ":\n\t" + action.gsub(/\n/, "\n\t") + "\n\n"
-          assets_target += destination + ' '
+        # assets
+        @assets.each do |a|
+          targets << "#{a['filename']}:\n\t#{a['fetch'].strip.gsub(/\n/, "\n\t")}"
         end
-        contents += assets_target + "\n"
+        targets << "assets: #{@external_files.join(' ')}"
 
-        # build target
-        tag = @config.definition['docker_opts']['build_tag']
-        contents += "\nbuild: assets\n"
-        contents += "\tdocker build --tag #{tag} .\n"
+        # build
+        targets << "build: assets\n\tdocker build -t #{@docker_opts['build_tag']} ."
 
-        # build_no_cache target
-        contents += "\nbuild_no_cache: assets\n"
-        contents += "\tdocker build --no-cache --tag #{tag} .\n"
+        # build_no_cache
+        targets << "build_no_cache: assets\n\tdocker build --no-cache -t #{@docker_opts['build_tag']} ."
 
-        # start target
-        docker_run_opts = @config.definition['docker_opts']['run_opts'] || []
-        contents += "\nstart:\n\tdocker run #{docker_run_opts.join(' ')} #{tag}\n"
+        # start
+        opts = @docker_opts['run_opts'] || []
+        targets << "start:\n\tdocker run #{opts.join(' ')} #{@docker_opts['build_tag']}"
+
+        return targets.join("\n\n") + "\n"
       end
     end
   end
