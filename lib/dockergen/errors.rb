@@ -6,5 +6,7 @@ module DockerGen
     class MissingContextFile < DockerGenError; end
     class InvalidBuildStep < DockerGenError; end
     class UndefinedSnippet < DockerGenError; end
+    class InvalidActionDefinition < DockerGenError; end
+    class InvalidDefinitionFile < DockerGenError; end
   end
 end

@@ -74,16 +74,11 @@ module DockerGen
         else
           STDERR.puts "[warning] Description is empty for #{signature}"
         end
-        @context.each { |item| item.each { |k,v| v = filter_vars(v, defined_vars) } }
-        dockerfile_entry = Action.new(Action::DOCKERFILE_ENTRY,
-                                      {dockerfile: @dockerfile.strip},
-                                      signature)
-        context_file_entries = @context.map do |c|
-          Action.new(Action::CONTEXT_FILE,
-                     {filename: c['filename'], contents: c['contents']},
-                     signature)
+        @context.each {|item| item.each {|k,v| v = filter_vars(v, defined_vars)}}
+        context_files = @context.map do |c|
+          ContextFile.new(signature, c['filename'], c['contents'])
         end
-        return context_file_entries + [dockerfile_entry]
+        return context_files.push(DockerfileEntry.new(signature, @dockerfile.strip))
       end
 
       private

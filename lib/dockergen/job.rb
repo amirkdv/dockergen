@@ -4,6 +4,7 @@ module DockerGen
   module Build
     class Job
       attr_reader :config
+      attr_reader :steps
       attr_reader :actions
 
       def initialize(config)
@@ -17,9 +18,7 @@ module DockerGen
                                                            @config.snippet_sources)
         @actions = @steps.flat_map do |step|
           if step.is_a? LiteralStep
-            next Action.new(Action::DOCKERFILE_ENTRY,
-                            {dockerfile: step.dockerfile},
-                            "Dockerfile entry '#{step.dockerfile}'")
+            next DockerfileEntry.new("Dockerfile entry '#{step.dockerfile}'", step.dockerfile)
           elsif step.is_a? SnippetStep
             next @snippets[step.snippet].interpret(step.vars)
           else
@@ -33,23 +32,21 @@ module DockerGen
         if @config.build_dir
           Dir.mkdir(@config.build_dir) unless File.exists?(@config.build_dir)
         end
-        @actions.select{|a| a.external}.each do |action|
-          filename = action.filename
-          provided_files = @config.definition['assets'].map{|i| i['filename']}
-          unless provided_files.include?(filename)
-            msg = "no fetch rule given for file '#{filename}' (required by #{action.source})"
+        @actions.select{|a| a.is_a?(ContextFile) && a.external}.each do |a|
+          unless @external_files.include?(a.filename)
+            msg = "no fetch rule given for context dependency '#{a.filename}' (required by #{a.source_description})"
             raise DockerGen::Errors::MissingContextFile.new(msg)
           end
         end
 
-        dockerfile = @actions.select{|a| a.type == Action::DOCKERFILE_ENTRY}
+        dockerfile = @actions.select{|a| a.is_a?(DockerfileEntry)}
                              .map{|a| a.dockerfile}
-                             .join("\n\n")
+                             .join("\n\n") + "\n"
 
         update_context('Dockerfile', dockerfile)
         update_context('Makefile', gen_makefile)
 
-        @actions.select{|a| a.type == Action::CONTEXT_FILE && !a.external}
+        @actions.select{|a| a.is_a?(ContextFile) && !a.external}
                 .each{|a| update_context(a.filename, a.contents)}
       end
 
