@@ -132,7 +132,7 @@ if it catches a violation:
       must provide an `asset` with `fetch` rule.
 1. Some snippets need to `ADD` helper files to the image. In such cases, as much
    as possible, use a consistent destination, e.g. `/var/build`, for all
-   snippets. For example, see [`apt_find_squid_deb_proxy`](snippets/apt.yml)].
+   snippets. For example, see [`detect_squid_deb_proxy`](snippets/apt.yml)].
 1. Order the terms in a snippet's name in decreasing order of informativeness,
    e.g. `mysql_load_dump` is better than `load_mysql_dump`.
 1. If you decide that in a snippet you need to expose the `filename` of a
