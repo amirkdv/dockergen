@@ -23,7 +23,7 @@
         base images.
   dockerfile: |
     RUN which nc >/dev/null || apt-get install -y netcat-openbsd
-    ADD scripts/find_squid_deb_proxy.sh /var/build/scripts/dsdp
+    ADD scripts/detect_squid_deb_proxy.sh /var/build/scripts/dsdp
     RUN bash /var/build/scripts/dsdp && apt-get update
   context:
   - filename: scripts/detect_squid_deb_proxy.sh
