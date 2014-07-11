@@ -24,7 +24,13 @@ module DockerGen
         @build_dir = opts[:build_dir]
         @definition = YAML.load_file(@def_yaml)
         @def_base_dir = File.expand_path(File.dirname(@def_yaml))
-        sources = @definition['snippet_sources']
+        valid_keys = ['snippet_sources', 'dockerfile', 'docker_opts', 'assets']
+        invalid = (@definition.keys - valid_keys)
+        unless invalid.empty?
+          msg = "invalid key(s) in definition file: '#{invalid.join("', '")}'"
+          raise DockerGen::Errors::InvalidDefinitionFile.new(msg)
+        end
+        sources = @definition['snippet_sources'] || []
         sources = [sources] if sources.is_a? String
         @snippet_sources = sources.map do |src|
           if src[0] == '/'
