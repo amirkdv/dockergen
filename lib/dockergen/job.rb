@@ -63,9 +63,6 @@ module DockerGen
 
       public
       def generate
-        if @config.build_dir
-          Dir.mkdir(@config.build_dir) unless File.exists?(@config.build_dir)
-        end
         # check if all external dependencies have a fetch rule
         @actions.select{|a| a.is_a?(ContextFile) && a.external}.each do |a|
           # if a/b has a fetch rule assume it also provides a/b/c
@@ -75,6 +72,9 @@ module DockerGen
           end
         end
 
+        if @config.build_dir
+          Dir.mkdir(@config.build_dir) unless File.exists?(@config.build_dir)
+        end
         dockerfile = @actions.select{|a| a.is_a?(DockerfileEntry)}
                              .map{|a| a.dockerfile}
                              .join("\n\n") + "\n"
