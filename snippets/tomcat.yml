@@ -1,0 +1,45 @@
+- name: tomcat6
+  description: Install Tomcat 6 and configure it under supervisor control
+  dockerfile: |
+    RUN apt-get install -y openjdk-6-jdk tomcat6
+    ADD files/supervisor/tomcat.conf /etc/supervisor/conf.d/tomcat.conf
+  context:
+  - filename: files/supervisor/tomcat.conf
+    contents: |
+      [program:tomcat]
+      environment = CATALINA_BASE='/var/lib/tomcat6',
+                    CATALINE_HOME='/usr/share/tomcat6',
+                    JAVA_HOME='/usr/lib/jvm/java-6-openjdk-amd64'
+      command = /bin/sh -c '. /etc/default/tomcat6 && exec /usr/share/tomcat6/bin/catalina.sh run'
+
+- name: solr
+  description: |
+    Install and configure the Solr app for Tomcat6. The app is installed under
+    /usr/share/solr, and the tomcat user is assumed to be tomcat6.
+  dockerfile: |
+    RUN mkdir -p /usr/share/solr "%%home_dir%%" "%%data_dir%%"
+    ADD %%context_warfile%% /usr/share/solr/solr.war
+    ADD files/solr.xml /etc/tomcat6/Catalina/localhost/solr.xml
+    ADD %%context_home_dir%% %%home_dir%%
+    ADD %%context_data_dir%% %%data_dir%%
+    RUN chown -R tomcat6 /etc/tomcat6/Catalina/localhost/solr.xml /usr/share/solr/solr.war "%%home_dir%%" "%%data_dir%%"
+    RUN chmod -R u+x /usr/share/solr/solr.war
+    RUN chmod -R u+rwx,g+rw,o-r "%%home_dir%%" "%%data_dir%%"
+  context:
+  - filename: '%%context_warfile%%'  # external dependency
+  - filename: '%%context_home_dir%%' # external dependency
+  - filename: '%%context_data_dir%%' # external dependency
+  - filename: files/solr.xml
+    contents: |
+      <Context docBase="/usr/share/solr/solr.war" debug="0" crossContext="true">
+        <Environment
+          name="solr/home"
+          type="java.lang.String"
+          value="%%home_dir%%"
+          override="true" />
+        <Valve
+          className="org.apache.catalina.valves.AccessLogValve"
+          prefix = "solr_"
+          suffix = ".log"
+          pattern = "common" />
+      </Context>
