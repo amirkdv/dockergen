@@ -40,3 +40,16 @@
     - To force log rotation, for debugging purposes, use:
         /usr/sbin/logrotate /etc/logrotate.conf --force --verbose
   dockerfile: RUN apt-get install -y logrotate
+
+- name: set_root_password
+  description: |
+    Sets root password to the contents of provided secret file.
+    Notes:
+    - keep an eye on https://github.com/dotcloud/docker/pull/6697 for docker
+      support for granting secrets to `docker build'.
+  dockerfile: |
+    ADD %%context_secretfile%% /tmp/secret
+    RUN echo "root:$( cat /tmp/secret )" | chpasswd
+    RUN rm -f /tmp/secret
+  context:
+    - filename: '%%context_secretfile%%'
