@@ -122,15 +122,23 @@ if it catches a violation:
 
 1. To avoid unnecessarily invalidating Docker's cache, Dockergen is smart about
    updating files in the build directory only if they need to change. In the
-   same spirit, make sure your snippet `ADD`s its files as late as
+   same spirit, make sure your snippet `COPY`/`ADD`s its files as late as
    possible.
+1. YAML [makes](http://yaml.org/spec/current.html) heavy use of the context that
+   each syntactical entity appears in. For example, the second colon in `url:
+   http://github.com` is disambiguated from the context. However, to avoid
+   complex corner cases quote your strings, via `"` or `'`, or use literal
+   blocks, via `|`, instead of relying YAML's disambiguiation magic.
 1. Snippets should create their context dependencies under the following
    subdirectories of the build context:
    * `files/` or `scripts/` if the snippet is providing the contents of the
       file,
    * `assets/` if this is an external dependency for which the build definition
-      must provide an `asset` with `fetch` rule.
-1. Some snippets need to `ADD` helper files to the image. In such cases, as much
+      must provide an `asset` with `fetch` rule; e.g. [`mysql_load_dump`](snippets/mysql.yml)
+   * `assets/.secret_*` for special external dependencies that are typically
+     passwords and the like, e.g. [`set_user_password`](snippets/common.yml).
+     However, keep an eye on https://github.com/dotcloud/docker/pull/6697 .
+1. Some snippets need to `COPY`/`ADD` helper files to the image. In such cases, as much
    as possible, use a consistent destination, e.g. `/var/build`, for all
    snippets. For example, see [`detect_squid_deb_proxy`](snippets/apt.yml)].
 1. Order the terms in a snippet's name in decreasing order of informativeness,
