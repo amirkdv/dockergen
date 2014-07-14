@@ -83,6 +83,7 @@ module DockerGen
 
         update_context('Dockerfile', dockerfile)
         update_context('Makefile', gen_makefile)
+        update_context('make/.gitkeep', '')
         update_context('assets/.gitkeep', '')
 
         @actions.select{|a| a.is_a?(ContextFile) && !a.external}
@@ -114,19 +115,21 @@ module DockerGen
 
       private
       def gen_makefile
-        targets = []
+        entries = []
         @assets.each do |a|
-          targets << "#{a['filename']}:\n\t#{a['fetch'].strip.gsub(/\n/, "\n\t")}"
+          entries << "#{a['filename']}:\n\t#{a['fetch'].strip.gsub(/\n/, "\n\t")}"
         end
-        targets << "assets: #{@external_files.join(' ')}"
+        entries << "assets: #{@external_files.join(' ')}"
         opts = @docker_opts['run_opts'] || []
         unless opts.empty?
-          targets << "build: assets\n\tdocker build -t #{@docker_opts['build_tag']} ."
-          targets << "build_no_cache: assets\n\tdocker build --no-cache -t #{@docker_opts['build_tag']} ."
-          targets << "start:\n\tdocker run #{opts.join(' ')} #{@docker_opts['build_tag']}"
+          entries << "build: assets\n\tdocker build -t #{@docker_opts['build_tag']} ."
+          entries << "build_no_cache: assets\n\tdocker build --no-cache -t #{@docker_opts['build_tag']} ."
+          entries << "start:\n\tdocker run #{opts.join(' ')} #{@docker_opts['build_tag']}"
         end
         phony = %w[start build build_no_cache]
-        return targets.push(".PHONY: #{phony.join(' ')}").join("\n\n") + "\n"
+        entries << ".PHONY: #{phony.join(' ')}"
+        entries << "include make/*.mk"
+        return entries.join("\n\n") + "\n"
       end
     end
   end
