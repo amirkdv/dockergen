@@ -4,7 +4,7 @@ module DockerGen
     DOCKERFILE_COMMANDS = %w[ADD COPY CMD ENTRYPOINT ENV EXPOSE MAINTAINER RUN USER VOLUME WORKDIR]
     SNIPPET_DEFINITION_ITEMS = %w[name description dockerfile context]
 
-    def self.load_snippets_by_name(names, sources)
+    def self.load_snippets_by_name(names, sources, logger)
       snippets = {}
       yaml_sources = []
       yaml_sources = sources.flat_map do |src|
@@ -27,8 +27,8 @@ module DockerGen
                   "  - #{source}\n  - #{snippets[name].source}"
             raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
           end
-          snippets[name] = Snippet.new(definition, source)
-          STDERR.puts "loaded: snippet '#{name}' from #{source}" if ENV.has_key? 'DEBUG'
+          snippets[name] = Snippet.new(definition, source, logger)
+          logger.debug "loaded: snippet '#{name}' from #{source}"
         end
       end
       names.each do |name|
@@ -39,15 +39,13 @@ module DockerGen
       snippets
     end
 
-    def self.check_snippet_definition(definition)
+    def self.check_snippet_definition(definition, logger)
       unless definition['name']
         msg = "A snippet in #{source} does not have a name"
         raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
       end
       (definition.keys - SNIPPET_DEFINITION_ITEMS).each do |strange|
-        msg = "warning: unknown snippet definition item " +
-              "'#{strange}' (snippet '#{definition['name']}')"
-        STDERR.puts msg
+        logger.warn msg "unknown snippet definition item '#{strange}' (snippet '#{definition['name']}')"
       end
       if definition['context']
         definition['context'].each do |c|
@@ -57,9 +55,10 @@ module DockerGen
           elsif c['filename'].index('files/') != 0 &&
                 c['filename'].index('scripts/') != 0 &&
                 c['contents']
-            STDERR.puts "warning: snippets should place all their files in " +
-                        "'files/' or 'scripts/', snippet " +
-                        "'#{definition['name']}' creates '#{c['filename']}'"
+            msg = "snippets should place all their files in 'files/' or " +
+                  "'scripts/', snippet '#{definition['name']}' " +
+                  "creates '#{c['filename']}'"
+            logger.warn msg
           end
         end
       end
@@ -75,7 +74,7 @@ module DockerGen
             msg = "warning: A dockerfile entry for snippet " +
                   "'#{definition['name']}' starts with '#{first}' " +
                   "(not a valid Dockerfile command)"
-            STDERR.puts msg
+            logger.warn msg
           end
         end
       end
@@ -89,11 +88,9 @@ module DockerGen
       attr_reader :required_vars
       attr_reader :source
 
-      def initialize(definition, source)
-        if ENV.has_key? 'DEBUG'
-          STDERR.puts "initializing snippet #{definition['name']}"
-        end
-        Build.check_snippet_definition(definition)
+      def initialize(definition, source, logger)
+        @logger = logger
+        Build.check_snippet_definition(definition, @logger)
         @source = source
         @description = definition['description']
         @name = definition['name']
@@ -108,8 +105,10 @@ module DockerGen
 
       def interpret(defined_vars)
         @required_vars.each do |var|
-          msg = "Configuration variable '#{var}' (snippet '#{@name}') is not defined"
-          raise DockerGen::Errors::MissingVariable.new(msg) unless defined_vars.keys.include?(var)
+          unless defined_vars.keys.include?(var)
+            msg = "Undefined variable '#{var}' (#{signature})"
+            raise DockerGen::Errors::MissingVariable.new(msg)
+          end
         end
         @dockerfile ||= ''
         @dockerfile = filter_vars(@dockerfile, defined_vars)
@@ -118,7 +117,10 @@ module DockerGen
           header = "#{header}\n#{@description.strip.gsub(/^/, '# ')}\n#{header}"
           @dockerfile = "#{header}\n#{@dockerfile}"
         else
-          STDERR.puts "[warning] Description is empty for #{signature}"
+          @logger.warn "Description is empty for #{signature}"
+        end
+        (defined_vars.keys - @required_vars).each do |unused|
+          @logger.warn "Unused variable '#{unused}' for #{signature}"
         end
         @context.each {|item| item.each {|_,v| v = filter_vars(v, defined_vars)}}
         context_files = @context.map do |c|

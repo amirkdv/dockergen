@@ -6,24 +6,47 @@ module DockerGen
       parser = CLI::Parser.new
 
       begin
+        logger = Logger.new
         parser.parse!(argv)
         config = DockerGen::Build::Config.new(parser.opts)
+        config.logger = Logger.new
         job = DockerGen::Build::Job.new(config)
         job.generate
         return 0
       rescue  OptionParser::MissingArgument,
               OptionParser::InvalidArgument,
               OptionParser::InvalidOption => e
-        STDERR.puts "[#{e.class}] #{e.message}"
-        STDERR.puts e.backtrace if ENV.has_key?('DEBUG')
+        config.logger.exception(e)
         STDERR.puts "\n#{parser.help}" unless ENV.has_key?('DEBUG')
         return 1
       rescue  DockerGen::Errors::DockerGenError,
               Errno::ENOENT,
               Errno::EACCES => e
-        STDERR.puts "[#{e.class}]\n    #{e.message}"
-        STDERR.puts e.backtrace if ENV.has_key?('DEBUG')
+        config.logger.exception(e)
         return 1
+      end
+    end
+
+    class Logger
+      def warn(string)
+        STDERR.puts "\033[0;33mWarning: #{string}\033[00m"
+      end
+
+      def error(string)
+        STDERR.puts "\033[0;31mError: #{string}\033[00m"
+      end
+
+      def exception(e)
+        self.error "[#{e.class}] #{e.message}"
+        STDERR.debug e.backtrace
+      end
+
+      def context(path, action)
+        STDERR.puts "[#{action}]".ljust(15) + path
+      end
+
+      def debug(string)
+        STDERR.puts string if ENV.has_key? 'DEBUG'
       end
     end
 

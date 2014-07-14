@@ -9,6 +9,7 @@ module DockerGen
       attr_reader :force_update
       attr_reader :definition
       attr_reader :snippet_sources
+      attr_accessor :logger
 
       def initialize(opts)
         opts = {

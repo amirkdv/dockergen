@@ -27,6 +27,7 @@ module DockerGen
       def initialize(config)
         Build.check_build_definition(config.definition)
         @config = config
+        @logger = config.logger
         @docker_opts = @config.definition['docker_opts'] || {}
         @assets = @config.definition['assets'] || []
         @external_files = @assets.map{|a| a['filename']}
@@ -36,7 +37,8 @@ module DockerGen
         @required_snippets = @steps.select{|s| s.is_a?(SnippetStep)}
                                    .map{|s| s.snippet}
         @snippets = DockerGen::Build.load_snippets_by_name(@required_snippets,
-                                                           @config.snippet_sources)
+                                                           @config.snippet_sources,
+                                                           @logger)
         @actions = @steps.flat_map do |step|
           if step.is_a? LiteralStep
             next DockerfileEntry.new("Dockerfile entry '#{step.dockerfile}'", step.dockerfile)
@@ -92,15 +94,16 @@ module DockerGen
         write = false
         if File.exists?(path)
           if File.open(path, 'r') { |f| f.read == contents }
-            STDERR.puts "[no-change]    #{path}"
+            @logger.context(path, 'no-change')
           elsif @config.force_update
-            STDERR.puts "[update]       #{path}"
+            @logger.context(path, 'updated')
             write = true
           else
-            STDERR.puts "[out-of-date]  #{path} (use --force-update to overwrite)"
+            @logger.context(path, 'stale')
+            @logger.warn "#{path} is out of date, use --force-update to overwrite"
           end
         else
-          STDERR.puts "[created]      #{path}"
+          @logger.context(path, 'created')
           write = true
         end
         if write
