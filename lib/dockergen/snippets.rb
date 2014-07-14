@@ -1,5 +1,9 @@
 module DockerGen
   module Build
+
+    DOCKERFILE_COMMANDS = %w[ADD COPY CMD ENTRYPOINT ENV EXPOSE MAINTAINER RUN USER VOLUME WORKDIR]
+    SNIPPET_DEFINITION_ITEMS = %w[name description dockerfile context]
+
     def self.load_snippets_by_name(names, sources)
       snippets = {}
       yaml_sources = []
@@ -40,6 +44,11 @@ module DockerGen
         msg = "A snippet in #{source} does not have a name"
         raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
       end
+      (definition.keys - SNIPPET_DEFINITION_ITEMS).each do |strange|
+        msg = "warning: unknown snippet definition item " +
+              "'#{strange}' (snippet '#{definition['name']}')"
+        STDERR.puts msg
+      end
       if definition['context']
         definition['context'].each do |c|
           if c['filename'].nil?
@@ -55,8 +64,20 @@ module DockerGen
         end
       end
       unless definition['context'] || definition['dockerfile']
-        msg = "snippet '#{definition['name']}' has no context or dockerfile entries"
+        msg = "snippet '#{definition['name']}' has no " +
+              "context or dockerfile entries"
         raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
+      end
+      if definition['dockerfile']
+        definition['dockerfile'].split("\n").each do |line|
+          first = line.split()[0]
+          unless line[0] =~ /\s/ || DOCKERFILE_COMMANDS.include?(first)
+            msg = "warning: A dockerfile entry for snippet " +
+                  "'#{definition['name']}' starts with '#{first}' " +
+                  "(not a valid Dockerfile command)"
+            STDERR.puts msg
+          end
+        end
       end
     end
 
@@ -69,8 +90,10 @@ module DockerGen
       attr_reader :source
 
       def initialize(definition, source)
+        if ENV.has_key? 'DEBUG'
+          STDERR.puts "initializing snippet #{definition['name']}"
+        end
         Build.check_snippet_definition(definition)
-        STDERR.puts "initializing snippet #{definition['name']}" if ENV.has_key? 'DEBUG'
         @source = source
         @description = definition['description']
         @name = definition['name']
