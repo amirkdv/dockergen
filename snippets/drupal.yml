@@ -10,26 +10,53 @@
     RUN composer global require drush/drush:6.*
     RUN ln -sf $COMPOSER_HOME/vendor/drush/drush/drush /usr/local/bin/drush
 
-- name: drupal_docroot_permissions
-  description: populate settings.local.php and fix docroot file permissions
+- name: drupal_apache_2.2_site
+  description: |
+    Configure an Apache 2.2 virtual host for Drupal, steps:
+    - enable necessary Apache modules
+    - generate vhost file
+    - populate docroot
+    - adjust file permissions in docroot
+    - generate settings.local.php
   dockerfile: |
-      RUN docroot="%%docroot%%" && \
-          chgrp sudo -R $docroot && \
-          chmod -R g=rws $docroot && \
-          chown -R www-data:sudo $docroot
-      RUN docroot="%%docroot%%" && \
-          find "$docroot" -type f -print0 | xargs -0 chmod u=r,g=rw,o-rwx && \
-          find "$docroot" -type d -print0 | xargs -0 chmod u=rx,g=rwx,o-rwx
-      RUN cd "%%docroot%%" && \
-          for dir in "%%writable_dirs%%"; do \
-            test -d "$dir" || mkdir -p "$dir"; \
-            chown -R www-data "$dir" && chmod -R u+w "$dir"; \
-          done
-
-- name: drupal_settings.local.php
-  description: Create settings.local.php for Drupal
-  dockerfile: ADD files/settings.local.php %%docroot%%/sites/default/settings.local.php
+    RUN a2enmod rewrite
+    ADD files/drupal_apache_vhost /etc/apache2/sites-available/drupal
+    ADD %%context_docroot%% %%docroot%%
+    ADD files/settings.local.php %%docroot%%/sites/default/settings.local.php
+    RUN docroot="%%docroot%%" && \
+        chgrp sudo -R $docroot && \
+        chmod -R g=rws $docroot && \
+        chown -R www-data:sudo $docroot
+    RUN docroot="%%docroot%%" && \
+        find "$docroot" -type f -print0 | xargs -0 chmod u=r,g=rw,o-rwx && \
+        find "$docroot" -type d -print0 | xargs -0 chmod u=rx,g=rwx,o-rwx
+    RUN cd "%%docroot%%" && \
+        for dir in "%%writable_dirs%%"; do \
+          test -d "$dir" || mkdir -p "$dir"; \
+          chown -R www-data "$dir" && chmod -R u+w "$dir"; \
+        done
+    RUN a2ensite drupal
   context:
+  - filename: files/drupal_apache_vhost
+    contents: |
+      <VirtualHost *:%%port%%>
+        ServerName default
+        ServerAlias default
+        DocumentRoot %%docroot%%
+        RewriteEngine On
+
+        <Directory %%docroot%%>
+          Options FollowSymLinks
+          AllowOverride All
+          Order allow,deny
+          Allow from all
+        </Directory>
+
+        LogLevel info
+        ErrorLog /var/log/apache2/drupal-error.log
+        CustomLog /var/log/apache2/drupal-access.log combined
+      </VirtualHost>
+  - filename: '%%context_docroot%%' # external asset
   - filename: files/settings.local.php
     contents: |
       <?php
@@ -49,3 +76,8 @@
   description: Assign 'drush cron' as cronjob for user www-data
   dockerfile: |
     RUN echo "0 *  *    *  *  /usr/bin/env COLUMNS=72 /usr/local/bin/drush --root=/var/www --uri=http://default --quiet cron" | crontab -u www-data -
+
+- name: drupal_test_status
+  description: Run `drush status' as a sanity check; use at the end of build
+  dockerfile: |
+    RUN mysql_start && drush --root=%%docroot%% status && mysql_stop

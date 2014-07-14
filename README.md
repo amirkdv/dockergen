@@ -31,11 +31,11 @@ git clone http://github.com/amirkdv/dockergen
 cd dockergen
 
 bin/dockergen -d definition.example.yml -b apache_app
-# [created]      apache_app_build/files/supervisor/supervisord.conf
-# [created]      apache_app_build/files/supervisor/apache.conf
-# [created]      apache_app_build/files/apache_vhost
-# [created]      apache_app_build/Dockerfile
-# [created]      apache_app_build/Makefile
+# [created]      apache_app/Dockerfile
+# [created]      apache_app/Makefile
+# [created]      apache_app/assets/.gitkeep
+# [created]      apache_app/files/supervisor/supervisord.conf
+# [created]      apache_app/files/supervisor/apache.conf
 
 make -C apache_app/ build
 # docker build logs ...
@@ -45,7 +45,7 @@ make -C apache_app/ start
 
 # in a separate tab:
 curl localhost:8001
-# Hello World
+# Hello World!
 ```
 
 Snippets
@@ -53,7 +53,7 @@ Snippets
 
 Here is a [possible definition](snippets/apache.yml) for a snippet that installs
 Apache and creates a Supervisor program for it (for a more complex snippet see
-[`apache_2.2_site`](snippets/apache.yml)):
+[`drupal_apache_2.2_site`](snippets/drupal.yml)):
 ```yaml
 - name: apache2
   description: install Apache and configure it under supervisor control
@@ -144,7 +144,7 @@ if it catches a violation:
 1. Order the terms in a snippet's name in decreasing order of informativeness,
    e.g. `mysql_load_dump` is better than `load_mysql_dump`.
 1. If you decide that in a snippet you need to expose the `filename` of a
-   context dependency as a variable, e.g. see [`apache_2.2_site`](snippets/apache.yml),
+   context dependency as a variable, e.g. see [`mysql_load_dump`](snippets/mysql.yml),
    use `context_[varname]` to indicate that the path is relative to the build
    context and not a path in the built image.
 1. Dockergen does not perform **any** dependency management. If your snippet

@@ -1,5 +1,5 @@
 - name: apache2
-  description: install Apache and configure it under supervisor control
+  description: Install Apache and configure it under supervisor control
   dockerfile: |
     RUN apt-get install -y apache2
     RUN rm /etc/apache2/sites-enabled/*
@@ -11,36 +11,6 @@
       ; supervisor configuration for Apache
       [program:apache]
       command = /bin/sh -c '. /etc/apache2/envvars && exec /usr/sbin/apache2 -D FOREGROUND'
-
-- name: apache_2.2_site
-  description: install vhost file for Apache 2.2. and populate docrooot
-  dockerfile: |
-    RUN a2enmod %%mods%%
-    ADD files/apache_vhost /etc/apache2/sites-available/%%name%%
-    ADD %%context_docroot%% %%docroot%%
-    RUN a2ensite %%name%%
-  context:
-  - filename: files/apache_vhost
-    contents: |
-      <VirtualHost *:%%port%%>
-        ServerName default
-        ServerAlias default
-        DocumentRoot %%docroot%%
-        RewriteEngine On
-
-        <Directory %%docroot%%>
-          Options FollowSymLinks
-          AllowOverride All
-          Order allow,deny
-          Allow from all
-        </Directory>
-
-        LogLevel info
-        ErrorLog /var/log/apache2/%%name%%-error.log
-        CustomLog /var/log/apache2/%%name%%-access.log combined
-      </VirtualHost>
-  - filename: '%%context_docroot%%'
-    # not having 'contents' means this file must be provided exernally
 
 - name: apache_rpaf
   description:  Configure mod_rpaf for Apache to ensure proper IP addresses are logged

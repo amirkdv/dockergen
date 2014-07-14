@@ -1,5 +1,5 @@
 - name: supervisor
-  description: install supervisor with minimal configuration
+  description: Install supervisor with minimal configuration
   dockerfile: |
     RUN apt-get install -y python-setuptools && easy_install supervisor
     RUN mkdir -p /etc/supervisor/conf.d

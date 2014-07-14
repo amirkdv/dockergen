@@ -7,13 +7,7 @@ dockerfile:
   - snippet: apache2
     vars:
       listen_ports: 80
-  - snippet: apache_2.2_site
-    vars:
-      docroot: /var/www/example
-      context_docroot: assets/site
-      name: hello
-      port: 80
-      mods: rewrite
+  - RUN echo 'Hello World!' > /var/www/index.html && a2ensite default
   - CMD ["supervisord", "-c", "/etc/supervisord.conf", "-n"]
 
 assets:
@@ -25,3 +19,4 @@ docker_opts:
   run_opts:
   - '--name ct_apache_app'
   - '--publish 8001:80'
+  - '--rm'
