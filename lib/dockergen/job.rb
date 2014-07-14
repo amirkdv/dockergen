@@ -81,6 +81,7 @@ module DockerGen
 
         update_context('Dockerfile', dockerfile)
         update_context('Makefile', gen_makefile)
+        update_context('assets/.gitkeep', '')
 
         @actions.select{|a| a.is_a?(ContextFile) && !a.external}
                 .each{|a| update_context(a.filename, a.contents)}
