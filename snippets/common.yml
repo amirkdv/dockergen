@@ -28,3 +28,15 @@
       ; Supervisor configuration for cron
       [program:cron]
       command = /usr/sbin/cron -f
+
+- name: logrotate
+  description: |
+    Install logrotate.
+    Notes:
+    - logrotate operates by creating a cron job for the root user in
+      /etc/cron.daily,
+    - Consequently, for log rotation to work you need to also install and
+      configure cron,
+    - To force log rotation, for debugging purposes, use:
+        /usr/sbin/logrotate /etc/logrotate.conf --force --verbose
+  dockerfile: RUN apt-get install -y logrotate
