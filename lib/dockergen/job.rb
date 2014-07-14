@@ -125,7 +125,8 @@ module DockerGen
           targets << "build_no_cache: assets\n\tdocker build --no-cache -t #{@docker_opts['build_tag']} ."
           targets << "start:\n\tdocker run #{opts.join(' ')} #{@docker_opts['build_tag']}"
         end
-        return targets.join("\n\n") + "\n"
+        phony = %w[start build build_no_cache]
+        return targets.push(".PHONY: #{phony.join(' ')}").join("\n\n") + "\n"
       end
     end
   end
