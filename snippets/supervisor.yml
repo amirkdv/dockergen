@@ -27,3 +27,16 @@
 
       [include]
       files = /etc/supervisor/conf.d/*.conf
+
+- name: mysql_supervisor
+  description: Configure MySQL as a Supervisor program
+  dockerfile: |
+    ADD files/supervisor/mysql.conf /etc/supervisor/conf.d/mysql.conf
+  context:
+  - filename: files/supervisor/mysql.conf
+    contents: |
+      ; supervisor configuration for MySQL server, the following assumes that syslog
+      ; is installed and running. If syslog is not present, use mysql_nosyslog.conf instead
+      [program:mysql]
+      command = /usr/local/bin/pidproxy /var/run/mysqld/mysqld.pid /usr/bin/mysqld_safe
+

@@ -1,30 +1,64 @@
 - name: mysql
-  description: Install MySQL server and configure it under supervisor control
+  description: |
+    Install MySQL server and configure it under supervisor control.
+    Install `mysql_start' and `mysql_stop` scripts for mysql provisioning steps,
+    see https://gist.github.com/amirkdv/c7d508f4a5d59576b1cf
   dockerfile: |
     RUN apt-get install -y mysql-server
-    ADD files/supervisor/mysql.conf /etc/supervisor/conf.d/mysql.conf
+    ADD scripts/mysql_start /usr/local/bin/mysql_start
+    RUN chmod +x /usr/local/bin/mysql_start
+    ADD scripts/mysql_stop /usr/local/bin/mysql_stop
+    RUN chmod +x /usr/local/bin/mysql_stop
   context:
-  - filename: files/supervisor/mysql.conf
+  - filename: scripts/mysql_start
     contents: |
-      ; supervisor configuration for MySQL server, the following assumes that syslog
-      ; is installed and running. If syslog is not present, use mysql_nosyslog.conf instead
-      [program:mysql]
-      command = /usr/local/bin/pidproxy /var/run/mysqld/mysqld.pid /usr/bin/mysqld_safe
+      #!/bin/bash
+      pid_file=/var/run/mysqld/mysqld.pid
+      log() { echo -e "\033[0;33m$1\033[00m" >&2; }
+      get_pid(){ [[ -e $pid_file ]] && cat $pid_file; }
+      log "starting mysql ..."
+      mysqld_safe --skip-syslog >/dev/null 2>&1 &
+      until [ -n "$(get_pid)" ]; do sleep 0.5; done
+
+  - filename: scripts/mysql_stop
+    contents: |
+      #!/bin/bash
+      pid_file=/var/run/mysqld/mysqld.pid
+      log() { echo -e "\033[0;33m$1\033[00m" >&2; }
+      get_pid(){ [[ -e $pid_file ]] && cat $pid_file; }
+      log "stopping mysql ..."
+      get_pid | xargs kill
+      until [[ -z $(get_pid) ]]; do sleep 0.5; done
 
 - name: mysql_initialize
-  description: Set mysql root password and grant privilege to app user
+  description: |
+    Set MySQL root password to the contents of a provided secret file, and
+    Create an app user with full privileges on a given databsae using
+    `mysql_{start,stop}'.
+
+    Note that unlike the root user password, the app user password is not
+    recorded in a secret file since such passwords typically end up in plain
+    text on the filesystem anyway.
   dockerfile: |
-    RUN supervisord -c /etc/supervisord.conf && sleep 5s && \
-        mysqladmin -u root password '%%root_password%%' && \
+    ADD %%context_secretfile%% /tmp/secret
+    RUN mysql_start && \
+        mysqladmin -u root password "$( cat /tmp/secret )" && \
         echo "CREATE DATABASE %%database%%; \
-          GRANT ALL ON %%database%%.* TO '%%user%%'@'localhost' IDENTIFIED BY '%%password%%'; \
-          FLUSH PRIVILEGES;" | mysql -u root -p'%%root_password%%'
+              GRANT ALL ON %%database%%.* TO '%%user%%'@'localhost' \
+              IDENTIFIED BY '%%password%%'; \
+              FLUSH PRIVILEGES;" | mysql -u root -p"$( cat /tmp/secret )" && \
+        mysql_stop
+    RUN rm -f /tmp/secret
+  context:
+  - filename: '%%context_secretfile%%'
 
 - name: mysql_load_dump
-  description: Populate MySQL database from dump file
+  description: |
+    Populate a MySQL database from a dump file using `mysql_{start,stop}'
   dockerfile: |
     ADD %%context_dump_path%% %%dump_path%%
-    RUN supervisord -c /etc/supervisord.conf && sleep 5s && \
-        zless %%dump_path%% | mysql -u %%user%% -p'%%password%%' -D %%database%%
+    RUN mysql_start && \
+        zless %%dump_path%% | mysql -u %%user%% -p"%%password%%" -D %%database%% && \
+        mysql_stop
   context:
   - filename: '%%context_dump_path%%'
