@@ -41,7 +41,7 @@ module DockerGen
 
     def self.check_snippet_definition(definition, logger)
       unless definition['name']
-        msg = "A snippet in #{source} does not have a name"
+        msg = "All snippets must have a name"
         raise DockerGen::Errors::InvalidSnippetDefinition.new(msg)
       end
       (definition.keys - SNIPPET_DEFINITION_ITEMS).each do |strange|

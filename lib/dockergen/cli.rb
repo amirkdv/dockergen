@@ -5,11 +5,10 @@ module DockerGen
     def self.init(argv)
       parser = CLI::Parser.new
 
+      logger = Logger.new
       begin
-        logger = Logger.new
         parser.parse!(argv)
-        config = DockerGen::Build::Config.new(parser.opts)
-        config.logger = logger
+        config = DockerGen::Build::Config.new(parser.opts, logger)
         job = DockerGen::Build::Job.new(config)
         job.generate
         return 0
@@ -17,7 +16,7 @@ module DockerGen
               OptionParser::InvalidArgument,
               OptionParser::InvalidOption => e
         logger.exception(e)
-        STDERR.puts "\n#{parser.help}" unless ENV.has_key?('DEBUG')
+        STDERR.puts "\n#{parser.help}" unless ENV.has_key?('DOCKERGEN_DEBUG')
         return 1
       rescue  DockerGen::Errors::DockerGenError,
               Errno::ENOENT,
@@ -37,7 +36,7 @@ module DockerGen
       end
 
       def exception(e)
-        self.error "[#{e.class}] #{e.message}"
+        error "[#{e.class}] #{e.message}"
         debug e.backtrace
       end
 
@@ -68,10 +67,6 @@ module DockerGen
                 '--force-update',
                 'In case of conflict overwrite existing files in build directory',
                 :force)
-        add_opt('-o',
-                '--stdout',
-                'write generated build directory to standard output',
-                :stdout)
         on_tail('-h',
                 '--help',
                 'Show this usage message and exit.') { puts help ; exit }
@@ -79,10 +74,6 @@ module DockerGen
 
       def parse!(args)
         super(args)
-        if @opts.has_key?(:stdout) && @opts.has_key?(:build_dir)
-          msg = '--build-dir is incompatible with --stdout'
-          raise InvalidOption.new(msg)
-        end
         if @opts.has_key?(:def_yaml)
           d = @opts[:def_yaml]
           raise MissingArgument.new('--definition [FILE]') unless d
