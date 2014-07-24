@@ -38,7 +38,7 @@ module DockerGen
 
       def exception(e)
         self.error "[#{e.class}] #{e.message}"
-        STDERR.debug e.backtrace
+        debug e.backtrace
       end
 
       def context(path, action)
