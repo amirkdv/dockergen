@@ -9,20 +9,20 @@ module DockerGen
         logger = Logger.new
         parser.parse!(argv)
         config = DockerGen::Build::Config.new(parser.opts)
-        config.logger = Logger.new
+        config.logger = logger
         job = DockerGen::Build::Job.new(config)
         job.generate
         return 0
       rescue  OptionParser::MissingArgument,
               OptionParser::InvalidArgument,
               OptionParser::InvalidOption => e
-        config.logger.exception(e)
+        logger.exception(e)
         STDERR.puts "\n#{parser.help}" unless ENV.has_key?('DEBUG')
         return 1
       rescue  DockerGen::Errors::DockerGenError,
               Errno::ENOENT,
               Errno::EACCES => e
-        config.logger.exception(e)
+        logger.exception(e)
         return 1
       end
     end
