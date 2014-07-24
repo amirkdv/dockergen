@@ -128,7 +128,7 @@ module DockerGen
         end
         phony = %w[start build build_no_cache]
         entries << ".PHONY: #{phony.join(' ')}"
-        entries << "include make/*.mk"
+        entries << "-include make/*.mk"
         return entries.join("\n\n") + "\n"
       end
     end
