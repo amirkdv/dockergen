@@ -41,9 +41,10 @@ module DockerGen
           if src[0] == '/'
             next src
           else
-            next File.expand_path(File.join(@def_base_dir, src))
+            next File.realpath(File.expand_path(File.join(@def_base_dir, src)))
           end
         end
+        @snippet_sources.uniq!
       end
     end
   end
