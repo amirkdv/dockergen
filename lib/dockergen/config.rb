@@ -31,7 +31,13 @@ module DockerGen
         end
         sources = @definition['snippet_sources'] || []
         sources = [sources] if sources.is_a? String
-        @snippet_sources = sources.map do |src|
+
+        # Default snippets are next to dockergen binary
+        prog = File.realpath($PROGRAM_NAME)
+        prog_snippets = File.join(File.dirname(File.dirname(prog)),
+           "snippets")
+
+        @snippet_sources = [prog_snippets] + sources.map do |src|
           if src[0] == '/'
             next src
           else
