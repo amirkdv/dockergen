@@ -8,28 +8,27 @@
 - name: detect_squid_deb_proxy
   description: |
     Tries to detect a squid deb proxy on a provided ip address and use it to
-    speed up `docker build'.
-    Usage:
-      ip=1.2.3.4 port=1234 find_squid_deb_proxy
-      # or the more readable alternative, provided by `set -k':
-      detect_squid_deb_proxy ip=1.2.3.4 port=1234
-    Notes:
-      - `ip' defaults to the default gateway ip address which presumably is the
-        docker host.
-      - `port' defaults to squid-deb-proxy's default port: 8000.
-      - detecting the default gateway requires `nc' and `iproute2`. This snippet
-        unconditionally installs `netcat-openbsd' since docker base images for
-        ubuntu 12.04 do not come with nc. `iproute2' is present on all ubuntu
-        base images.
+    speed up `docker build'. Installs /var/build/scripts/detect_squid_deb_proxy.
   dockerfile: |
     RUN which nc >/dev/null || apt-get install -y netcat-openbsd
-    ADD scripts/detect_squid_deb_proxy.sh /var/build/scripts/dsdp
-    RUN bash /var/build/scripts/dsdp && apt-get update
+    ADD scripts/detect_squid_deb_proxy /var/build/scripts/detect_squid_deb_proxy
+    RUN bash /var/build/scripts/detect_squid_deb_proxy && apt-get update
   context:
-  - filename: scripts/detect_squid_deb_proxy.sh
+  - filename: scripts/detect_squid_deb_proxy
     contents: |
       #!/bin/bash
-
+      # Usage:
+      #   ip=1.2.3.4 port=1234 detect_squid_deb_proxy
+      # or the more readable alternative:
+      #   detect_squid_deb_proxy ip=1.2.3.4 port=1234
+      # Notes:
+      #   - `ip' defaults to the default gateway ip address which presumably is the
+      #     docker host.
+      #   - `port' defaults to squid-deb-proxy's default port: 8000.
+      #   - detecting the default gateway requires `nc' and `iproute2`. This snippet
+      #     unconditionally installs `netcat-openbsd' since docker base images for
+      #     ubuntu 12.04 do not come with nc. `iproute2' is present on all ubuntu
+      #     base images.
       main(){
         [[ -z $ip ]] && ip="$( ip route show | grep ^default | sed 's/^default via \([0-9\.]\+\).*$/\1/' )"
         [[ -z $port ]] && port=8000
@@ -39,11 +38,10 @@
         printf "connecting to $url ... \n" >&2
         if timeout 5 bash -c "echo 'HEAD /' | nc $ip $port | grep -q squid-deb-proxy"; then
           printf "detected squid deb proxy at $url\n" >&2
-          printf 'Acquire::http::Proxy "%s";\n' $url # >> "$conf_path"
-          printf 'Acquire::http::Proxy::ppa.launchpad.net DIRECT;\n' # >> "$conf_path"
+          printf 'Acquire::http::Proxy "%s";\n' $url >> "$conf_path"
+          printf 'Acquire::http::Proxy::ppa.launchpad.net DIRECT;\n' >> "$conf_path"
         else
           printf "No squid-deb-proxy detected at $url\n" >&2
-          exit 1
         fi
       }
 
